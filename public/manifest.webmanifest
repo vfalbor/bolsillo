@@ -1,0 +1,10 @@
+{
+  "name": "Bolsillo",
+  "short_name": "Bolsillo",
+  "description": "Tu taller de software en el móvil",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4efe6",
+  "theme_color": "#f4efe6",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Audiolibros</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icono.svg">
+  <meta name="theme-color" content="#fff7ec">
+  <style>
+    :root { --bg: #fff7ec; --card: #ffffff; --ink: #3a2e25; --soft: #8a7a6c; --accent: #f0a868; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #1f1a17; --card: #2c2622; --ink: #f6ece2; --soft: #b5a698; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-rounded, "Nunito", system-ui, sans-serif; background: var(--bg); color: var(--ink);
+      padding: 20px 16px calc(150px + env(safe-area-inset-bottom)); }
+    h1 { font-size: 28px; margin: 4px 0 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+    .book { border: 0; border-radius: 22px; padding: 18px 12px; min-height: 170px; color: #2a211b; font: inherit;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer;
+      box-shadow: 0 4px 0 rgba(0,0,0,.12); transition: transform .1s; }
+    .book:active { transform: scale(.96); }
+    .book .e { font-size: 64px; line-height: 1; }
+    .book .t { font-weight: 800; font-size: 16px; text-align: center; }
+    .book .p { font-size: 12px; opacity: .75; }
+    .add { background: var(--card); color: var(--soft); border: 3px dashed var(--soft); box-shadow: none; }
+    .player { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+      box-shadow: 0 -6px 24px rgba(0,0,0,.12); border-radius: 26px 26px 0 0; display: none; }
+    .player.on { display: block; }
+    .now { display: flex; align-items: center; gap: 12px; font-weight: 800; }
+    .now .e { font-size: 36px; }
+    .bar { height: 10px; background: rgba(0,0,0,.08); border-radius: 6px; margin: 12px 0; overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 0; background: var(--accent); }
+    .ctrls { display: flex; justify-content: center; align-items: center; gap: 18px; }
+    .ctrls button { border: 0; background: none; font-size: 30px; color: var(--ink); width: 56px; height: 56px; border-radius: 50%; cursor: pointer; }
+    .ctrls .big { background: var(--accent); color: #fff; width: 76px; height: 76px; font-size: 34px; }
+    .sleep { font-size: 14px !important; width: auto !important; padding: 0 12px; }
+  </style>
+</head>
+<body>
+  <h1>🎧 Mis cuentos</h1>
+  <div class="grid" id="grid"></div>
+  <input type="file" id="file" accept="audio/*" hidden multiple>
+
+  <div class="player" id="player">
+    <div class="now"><span class="e" id="nowE"></span><span id="nowT"></span></div>
+    <div class="bar"><i id="prog"></i></div>
+    <div class="ctrls">
+      <button id="back" aria-label="Atrás 15 segundos">⏪</button>
+      <button id="play" class="big" aria-label="Reproducir o pausar">▶</button>
+      <button id="fwd" aria-label="Adelante 15 segundos">⏩</button>
+      <button id="sleep" class="sleep" aria-label="Temporizador">🌙 Off</button>
+    </div>
+  </div>
+  <audio id="audio"></audio>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "Audiolibros",
+  "short_name": "Cuentos",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fff7ec",
+  "theme_color": "#fff7ec",
+  "icons": [{ "src": "icono.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

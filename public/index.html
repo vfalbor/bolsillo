@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>Bolsillo</title>
+  <meta name="description" content="Tu taller de software en el móvil">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg">
+  <meta name="theme-color" content="#f4efe6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Home -->
+  <section id="home" class="screen">
+    <header class="top">
+      <div>
+        <h1>Bolsillo</h1>
+        <p class="sub" id="status">Tu taller de software en el móvil</p>
+      </div>
+    </header>
+
+    <h2>Mis apps</h2>
+    <div id="projects" class="list"></div>
+
+    <h2>Empieza desde…</h2>
+    <p class="hint">Elige una base y dile a Claude qué quieres cambiar.</p>
+    <div id="templates" class="list"></div>
+  </section>
+
+  <!-- Project -->
+  <section id="project" class="screen" hidden>
+    <header class="bar">
+      <button class="icon" id="back" aria-label="Volver">‹</button>
+      <div class="title"><span id="pEmoji"></span> <span id="pName"></span></div>
+      <button class="icon" id="undo" aria-label="Deshacer último cambio" title="Deshacer">↶</button>
+      <button class="run" id="run">▶ Ejecutar</button>
+    </header>
+    <nav class="tabs">
+      <button data-tab="chat" class="on">Chat</button>
+      <button data-tab="preview">Vista previa</button>
+      <button data-tab="log">Historial</button>
+    </nav>
+
+    <div id="tab-chat" class="tab">
+      <div id="messages"></div>
+      <form id="composer">
+        <textarea id="input" rows="1" placeholder="Dile a Claude qué quieres…" enterkeyhint="send"></textarea>
+        <button id="send" aria-label="Enviar">➤</button>
+      </form>
+    </div>
+
+    <div id="tab-preview" class="tab" hidden>
+      <div class="previewbar">
+        <span id="pUrl" class="url"></span>
+        <button id="reload" class="ghost">⟳ Recargar</button>
+        <a id="openApp" class="ghost" target="_blank" rel="noopener">Abrir ↗</a>
+      </div>
+      <iframe id="frame" title="Vista previa de la app"></iframe>
+      <div id="notRunning" class="empty">La app está parada. Pulsa <b>▶ Ejecutar</b>.</div>
+    </div>
+
+    <div id="tab-log" class="tab" hidden>
+      <h3>Versiones</h3>
+      <ol id="history" class="history"></ol>
+      <h3>Salida de la app</h3>
+      <pre id="logs"></pre>
+      <button id="delete" class="danger">Borrar esta app</button>
+    </div>
+  </section>
+
+  <!-- New project sheet -->
+  <dialog id="newDialog">
+    <form method="dialog" id="newForm">
+      <h2 id="newTitle">Nueva app</h2>
+      <label>Nombre
+        <input name="name" required placeholder="Cuentos de Lucas" autocomplete="off">
+      </label>
+      <label>¿Qué quieres? <span class="opt">(opcional)</span>
+        <textarea name="idea" rows="4" placeholder="Igual que esta, pero que los cuentos tengan dinosaurios y una canción al terminar"></textarea>
+      </label>
+      <input type="hidden" name="template">
+      <div class="row">
+        <button value="cancel" formnovalidate class="ghost">Cancelar</button>
+        <button value="ok" class="primary">Crear</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
