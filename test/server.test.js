@@ -91,3 +91,73 @@ test('token is required when listening beyond localhost', async () => {
   assert.equal((await fetch(url + '/api/projects', { headers: { cookie: 'bolsillo=secreto' } })).status, 200);
   lan.close();
 });
+
+test('claude sign-in: paste-the-code flow and saved keys', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'b-home-'));
+  const prevHome = process.env.HOME;
+  process.env.HOME = home;
+  try {
+    let { data: s } = await call('/api/claude');
+    assert.deepEqual([s.installed, s.loggedIn], [true, false]);
+
+    let { data: l } = await call('/api/claude/login', 'POST');
+    for (let i = 0; !l.url && i < 50; i++) { await new Promise((r) => setTimeout(r, 100)); ({ data: l } = await call('/api/claude/login')); }
+    assert.equal(l.url, 'https://claude.com/cai/oauth/authorize?code=true&state=abc');
+
+    await call('/api/claude/login/code', 'POST', { code: 'codigo-bueno' });
+    for (let i = 0; l.state !== 'done' && i < 50; i++) { await new Promise((r) => setTimeout(r, 100)); ({ data: l } = await call('/api/claude/login')); }
+    assert.equal(l.state, 'done');
+    ({ data: s } = await call('/api/claude'));
+    assert.equal(s.loggedIn, true);
+
+    assert.equal((await call('/api/claude/key', 'POST', { key: 'hola' })).status, 400);
+    ({ data: s } = await call('/api/claude/key', 'POST', { key: 'sk-ant-oat01-abcdefghijkl' }));
+    assert.deepEqual(app.account.env(), { CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-abcdefghijkl' });
+    await call('/api/claude/key', 'DELETE');
+    assert.deepEqual(app.account.env(), {});
+  } finally {
+    process.env.HOME = prevHome;
+  }
+});
+
+test('linux console and launch links', async () => {
+  const { data: out } = await call('/api/shell', 'POST', { cmd: 'echo hola && exit 3' });
+  assert.deepEqual(out, { code: 3, output: 'hola\n' });
+
+  const { data: p } = await call('/api/projects', 'POST', { name: 'Lanzable', template: 'web-basica' });
+  const res = await fetch(`${base}/launch/${p.id}`, { redirect: 'manual' });
+  assert.equal(res.status, 302);
+  const target = res.headers.get('location');
+  assert.match(target, /^http:\/\/127\.0\.0\.1:\d+\/$/);
+  assert.equal((await fetch(target)).status, 200);
+  await call(`/api/projects/${p.id}`, 'DELETE');
+});
+
+test('device calls go to the Android bridge when present', async () => {
+  const seen = [];
+  const bridge = (await import('node:http')).createServer((req, res) => {
+    let body = '';
+    req.on('data', (d) => { body += d; });
+    req.on('end', () => {
+      seen.push({ url: req.url, auth: req.headers.authorization, body: body && JSON.parse(body) });
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(req.url === '/caps' ? { caps: ['speak', 'shortcut'] } : { ok: true }));
+    });
+  });
+  await new Promise((r) => bridge.listen(0, '127.0.0.1', r));
+  process.env.BOLSILLO_BRIDGE = `http://127.0.0.1:${bridge.address().port}`;
+  process.env.BOLSILLO_BRIDGE_TOKEN = 't0k';
+  try {
+    const { data: caps } = await call('/api/device');
+    assert.equal(caps.find((c) => c.name === 'speak').available, true);
+    assert.equal(caps.find((c) => c.name === 'torch').available, false);
+    const { data } = await call('/api/device/speak', 'POST', { text: 'hola' });
+    assert.deepEqual(data, { ok: true });
+    assert.deepEqual(seen.at(-1), { url: '/speak', auth: 'Bearer t0k', body: { text: 'hola' } });
+    assert.equal((await call('/api/info')).data.android, true);
+  } finally {
+    delete process.env.BOLSILLO_BRIDGE;
+    delete process.env.BOLSILLO_BRIDGE_TOKEN;
+    bridge.close();
+  }
+});

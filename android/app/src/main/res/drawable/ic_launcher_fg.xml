@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The pocket from public/icon.svg, centred in the 108dp adaptive-icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="4" android:translateY="-2">
+        <path android:fillColor="#fffdf9" android:pathData="M28,34h44v30a14,14 0,0 1,-14 14H42a14,14 0,0 1,-14 -14z" />
+        <path android:strokeColor="#d9622b" android:strokeWidth="5" android:pathData="M28,34q22,14 44,0" />
+        <path android:strokeColor="#26211c" android:strokeWidth="4" android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M44,52l-6,6 6,6M56,52l6,6 -6,6" />
+    </group>
+</vector>

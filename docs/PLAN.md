@@ -45,15 +45,28 @@ Decisiones:
 | Fase | Entregable | Estado |
 |---|---|---|
 | 0 | Investigación + plan | ✅ |
-| 1 | Orquestador + PWA + plantillas (audiolibros, web básica), probado en Linux | 🚧 en curso |
+| 1 | Orquestador + PWA + plantillas (audiolibros, web básica), probado en Linux | ✅ |
 | 2 | Instalador Termux de un comando, prueba en Android real, puente Termux:API | pendiente |
 | 3 | Remezclar desde URL de git / compartir proyecto (zip/QR), deshacer con git | pendiente |
-| 4 | App Android propia (WebView + Termux embebido o proot) para no tener que instalar Termux | pendiente |
+| 4 | App Android propia (WebView + proot + Ubuntu Base) sin Termux, tienda de apps, login de Claude desde la app, accesos directos | ✅ v0.2 (probado en emulador x86_64) |
 | 5 | Exportar a APK (Capacitor/TWA) y publicar apps a una URL pública (túnel) | pendiente |
+
+## 3b. Web o nativa (decisión, oct. 2026)
+
+- **Solo web (PWA) no basta**: un navegador no puede lanzar procesos, así que ni Linux ni Claude Code.
+- **Termux + PWA** funciona, pero obliga a instalar Termux desde F-Droid y teclear comandos.
+- **Elegido: APK nativo fino + Linux embebido + interfaz web en WebView.** El APK trae `proot`
+  (compilado para Android por Termux), descarga Ubuntu Base la primera vez e instala Node.js y
+  Claude Code. La interfaz sigue siendo HTML (la misma que en el PC) y lo nativo aporta lo que la
+  web no puede: mantener vivo el Linux (servicio en primer plano), hardware sin Termux:API,
+  iconos en la pantalla de inicio por app y abrir el login de Claude en el navegador.
+- Ubuntu (glibc) y no Alpine (musl): musl usa la llamada `fork` en x86_64 y Android la bloquea a las apps.
 
 ## 4. Riesgos
 
 - **Permisos del agente**: por defecto `acceptEdits` + lista blanca de comandos (npm, node, git…). Modo "libre" opcional.
 - **Recursos del móvil**: batería y RAM; parar apps inactivas.
-- **Android mata procesos en segundo plano**: `termux-wake-lock` mientras se trabaja.
+- **Android mata procesos en segundo plano**: servicio en primer plano + wake lock. En Android 12+ el
+  límite de "procesos fantasma" puede matar a Claude; documentado cómo desactivarlo.
+- **Google Play**: `targetSdk 28` impide publicarlo allí; distribución como APK directo.
 - **Seguridad**: el panel escucha solo en 127.0.0.1; para red local exige token.

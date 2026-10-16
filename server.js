@@ -4,13 +4,14 @@
 import http from 'node:http';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Projects } from './lib/projects.js';
 import { Runner } from './lib/runner.js';
 import { runTurn } from './lib/agent.js';
 import { serveStatic } from './lib/static.js';
-import { listCapabilities, callCapability } from './lib/device.js';
+import { listCapabilities, callCapability, onAndroid } from './lib/device.js';
+import { ClaudeAccount } from './lib/claude.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,11 +25,21 @@ export function createApp({
   const projects = new Projects({ dataDir, templatesDir: path.join(here, 'templates') });
   const runner = new Runner({ basePort, host });
   const turns = new Map(); // project id -> running agent child
+  const account = new ClaudeAccount({ claudeBin, dataDir });
 
   const routes = [
-    ['GET', /^\/api\/info$/, async () => ({
-      claude: claudeVersion(claudeBin), host, device: await listCapabilities(),
-    })],
+    ['GET', /^\/api\/info$/, async () => {
+      const [claude, device] = await Promise.all([account.status(), listCapabilities()]);
+      return { claude: claude.version && `${claude.version} (Claude Code)`, account: claude, android: onAndroid(), host, device };
+    }],
+    ['GET', /^\/api\/claude$/, () => account.status({ fresh: true })],
+    ['POST', /^\/api\/claude\/key$/, (_, body) => { account.saveKey(body.key); return account.status({ fresh: true }); }],
+    ['DELETE', /^\/api\/claude\/key$/, () => { account.forgetKey(); return account.status({ fresh: true }); }],
+    ['POST', /^\/api\/claude\/login$/, () => account.startLogin()],
+    ['GET', /^\/api\/claude\/login$/, () => account.loginState()],
+    ['POST', /^\/api\/claude\/login\/code$/, (_, body) => account.sendCode(body.code)],
+    ['DELETE', /^\/api\/claude\/login$/, () => { account.cancelLogin(); return { ok: true }; }],
+    ['POST', /^\/api\/shell$/, (_, body) => shell(String(body.cmd || ''), body.cwd ? projects.dir(body.cwd) : dataDir)],
     ['GET', /^\/api\/templates$/, () => projects.listTemplates()],
     ['GET', /^\/api\/projects$/, () => projects.list().map((p) => ({ ...p, ...runner.status(p.id), busy: turns.has(p.id) }))],
     ['POST', /^\/api\/projects$/, (_, body) => {
@@ -83,7 +94,7 @@ export function createApp({
     const steps = [];
     let reply = '';
     const { child, done } = runTurn({
-      cwd: projects.dir(id), prompt: message, sessionId: p.sessionId, freeMode: !!body.free, claudeBin,
+      cwd: projects.dir(id), prompt: message, sessionId: p.sessionId, freeMode: !!body.free, claudeBin, env: account.env(),
       onEvent(ev) {
         if (ev.type === 'session') projects.setState(id, { sessionId: ev.sessionId });
         if (ev.type === 'tool') steps.push(ev.label);
@@ -113,6 +124,14 @@ export function createApp({
       if (token && url.searchParams.get('token') === token) {
         res.setHeader('set-cookie', `bolsillo=${token}; HttpOnly; SameSite=Strict; Path=/`);
       }
+      // /launch/<id>: start an app and jump to it (home-screen shortcuts open this).
+      const launch = /^\/launch\/([\w-]+)\/?$/.exec(url.pathname);
+      if (launch && req.method === 'GET') {
+        const p = mustGet(launch[1]);
+        const { port } = await runner.start(p.id, projects.dir(p.id), p);
+        res.writeHead(302, { location: `http://${req.headers.host?.split(':')[0] || '127.0.0.1'}:${port}/` }).end();
+        return;
+      }
       if (!url.pathname.startsWith('/api/')) return serveStatic(path.join(here, 'public'), req, res);
 
       const chatMatch = /^\/api\/projects\/([\w-]+)\/chat$/.exec(url.pathname);
@@ -132,17 +151,23 @@ export function createApp({
     }
   });
 
-  return { server, projects, runner, token, host, close() { runner.stopAll(); for (const c of turns.values()) c.kill(); server.close(); } };
+  // A tiny Linux console for the settings screen: runs one command, returns its output.
+  function shell(cmd, cwd) {
+    if (!cmd.trim()) throw httpError(400, 'Escribe un comando');
+    return new Promise((resolve) => {
+      execFile('sh', ['-c', cmd], { cwd, timeout: 120000, maxBuffer: 1 << 20, env: account.childEnv() }, (err, stdout, stderr) => {
+        resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, output: `${stdout}${stderr}`.slice(-20000) || (err && !err.code ? err.message : '') });
+      });
+    });
+  }
+
+  return { server, projects, runner, account, token, host, close() { runner.stopAll(); account.cancelLogin(); for (const c of turns.values()) c.kill(); server.close(); } };
 }
 
 function authorized(req, url, token) {
   if (url.searchParams.get('token') === token) return true;
   if (req.headers.authorization === `Bearer ${token}`) return true;
   return (req.headers.cookie || '').split(/;\s*/).includes(`bolsillo=${token}`);
-}
-
-function claudeVersion(bin) {
-  try { return execFileSync(bin, ['--version'], { encoding: 'utf8', timeout: 10000 }).trim(); } catch { return null; }
 }
 
 function httpError(status, message) {
