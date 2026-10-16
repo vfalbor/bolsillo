@@ -46,7 +46,7 @@ Decisiones:
 |---|---|---|
 | 0 | Investigación + plan | ✅ |
 | 1 | Orquestador + PWA + plantillas (audiolibros, web básica), probado en Linux | ✅ |
-| 2 | Instalador Termux de un comando, prueba en Android real, puente Termux:API | pendiente |
+| 2 | Instalador Termux de un comando, compatibilidad Android 8–17 en emulador ([COMPATIBILIDAD](COMPATIBILIDAD.md)), puente propio en vez de Termux:API | ✅ emuladores x86_64 · pendiente: móvil real arm64 y login real de Claude |
 | 3 | Remezclar desde URL de git / compartir proyecto (zip/QR), deshacer con git | pendiente |
 | 4 | App Android propia (WebView + proot + Ubuntu Base) sin Termux, tienda de apps, login de Claude desde la app, accesos directos | ✅ v0.2 (probado en emulador x86_64) |
 | 5 | Exportar a APK (Capacitor/TWA) y publicar apps a una URL pública (túnel) | pendiente |

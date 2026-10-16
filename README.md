@@ -20,13 +20,25 @@ propio teléfono**. Sin PC y sin nube ajena: el código es tuyo.
 3. En **Ajustes → Iniciar sesión con Claude**: se abre el navegador, autorizas y pegas el código.
    Vale una cuenta Pro/Max, o una clave de API.
 
-Requisitos: Android 8 o superior, procesador de 64 bits (arm64; x86_64 para el emulador),
-~1,5 GB libres.
+Requisitos: Android 8 o superior con Linux (kernel) 4.4 o más nuevo — casi todos los móviles
+desde 2018; si no, la app lo dice al arrancar —, procesador de 64 bits (arm64; x86_64 para el
+emulador), ~1,5 GB libres. Compatibilidad probada versión a versión en
+[docs/COMPATIBILIDAD.md](docs/COMPATIBILIDAD.md).
 
 > **Android 12+ y "procesos fantasma".** Android mata apps que lanzan muchos procesos hijos
 > (Claude Code, git y node lo hacen). Si ves que Bolsillo se corta mientras Claude trabaja, activa
 > en *Opciones de desarrollador* "Desactivar restricciones de procesos secundarios", o desde un PC:
 > `adb shell settings put global settings_enable_monitor_phantom_procs false`.
+
+### Probar en emuladores
+
+```bash
+scripts/test-emulator.sh "system-images;android-34;google_apis;x86_64"
+```
+
+Arranca un emulador limpio, instala el APK y recorre el flujo completo (Linux, Node, Claude Code,
+crear y abrir una app, puente del móvil, segundo plano). Deja informe y captura en
+`test/emulator-results/<versión>/`.
 
 ### Compilar el APK
 

@@ -49,16 +49,16 @@ public class LinuxService extends Service {
             "set -e",
             "export DEBIAN_FRONTEND=noninteractive",
             "echo '» Descargando la lista de programas'",
-            "apt-get update -q",
+            "apt-get update -q -o Acquire::Retries=4",
             "echo '» Instalando git y herramientas'",
-            "apt-get install -y -q --no-install-recommends ca-certificates curl git ripgrep bsdutils",
+            "apt-get install -y -q -o Acquire::Retries=4 --no-install-recommends ca-certificates curl git ripgrep bsdutils",
             "echo '» Instalando Node.js'",
             "A=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/'); V=" + NODE_VERSION + "; F=node-$V-linux-$A.tar.gz",
-            "cd /tmp && curl -fsSLO https://nodejs.org/dist/$V/$F",
-            "curl -fsSL https://nodejs.org/dist/$V/SHASUMS256.txt | grep \" $F$\" | sha256sum -c -",
+            "cd /tmp && curl -fsSLO --retry 4 --retry-all-errors -C - https://nodejs.org/dist/$V/$F",
+            "curl -fsSL --retry 4 --retry-all-errors https://nodejs.org/dist/$V/SHASUMS256.txt | grep \" $F$\" | sha256sum -c -",
             "tar xzf $F -C /usr/local --strip-components=1 --no-same-owner && rm $F && cd /",
             "echo '» Instalando Claude Code'",
-            "npm install -g --no-fund --no-audit @anthropic-ai/claude-code",
+            "npm install -g --no-fund --no-audit --fetch-retries=4 @anthropic-ai/claude-code || npm install -g --no-fund --no-audit --fetch-retries=4 @anthropic-ai/claude-code",
             "git config --global init.defaultBranch main",
             "claude --version",
             "touch /" + PACKAGES_MARK,
@@ -190,6 +190,7 @@ public class LinuxService extends Service {
 
     private void work() {
         try {
+            Linux.checkKernel();
             Linux linux = new Linux(this);
             if (!linux.hasRootfs()) installRootfs(linux);
             linux.prepare();
@@ -207,6 +208,7 @@ public class LinuxService extends Service {
     private void installRootfs(Linux linux) throws Exception {
         File archive = new File(getCacheDir(), "rootfs.tar.gz");
         String file = Linux.rootfsFile();
+        waitForInternet("cdimage.ubuntu.com");
         set("download", "Descargando Linux (unos 30 MB)", 0);
         download(Linux.UBUNTU_RELEASES + file, archive);
         String expected = "";
@@ -223,18 +225,35 @@ public class LinuxService extends Service {
         archive.delete();
     }
 
+    /** The phone may have just been switched on or be between networks: wait a bit instead of failing. */
+    private void waitForInternet(String host) throws Exception {
+        for (int i = 0; ; i++) {
+            try {
+                java.net.InetAddress.getByName(host);
+                return;
+            } catch (java.net.UnknownHostException e) {
+                if (i >= 60 || !running) throw new IOException("No hay conexión a internet. Conéctate a una red y pulsa Reintentar");
+                if (i == 0) set(stage, "Esperando conexión a internet…", -1);
+                Thread.sleep(3000);
+            }
+        }
+    }
+
     private void installPackages(Linux linux) throws Exception {
+        waitForInternet("nodejs.org");
         set("packages", "Instalando Node.js y Claude Code (unos minutos, una sola vez)", -1);
         Process p = linux.command(INSTALL_SCRIPT, new HashMap<>()).start();
+        String last = "";
         try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = r.readLine()) != null) {
                 if (line.startsWith("» ")) message = line.substring(2);
+                else if (!line.trim().isEmpty()) last = line;
                 log(line);
             }
         }
         int code = p.waitFor();
-        if (code != 0) throw new IOException("La instalación de programas falló (código " + code + "). ¿Hay conexión a internet?");
+        if (code != 0) throw new IOException("La instalación de programas falló (código " + code + "): " + last);
     }
 
     /** Copies the Bolsillo server from the APK into Linux when the APK changed. */
@@ -292,15 +311,35 @@ public class LinuxService extends Service {
         }
     }
 
-    private static void download(String url, File dest) throws IOException {
+    /** Downloads with a few retries, resuming where the connection dropped (Wi-Fi to mobile data, etc.). */
+    private void download(String url, File dest) throws Exception {
+        dest.delete();
+        for (int attempt = 1; ; attempt++) {
+            try {
+                downloadOnce(url, dest);
+                return;
+            } catch (IOException e) {
+                if (attempt >= 5 || !running) throw e;
+                log("La descarga se cortó (" + e.getMessage() + "); reintentando…");
+                Thread.sleep(3000L * attempt);
+                waitForInternet(new URL(url).getHost());
+            }
+        }
+    }
+
+    private static void downloadOnce(String url, File dest) throws IOException {
+        long have = dest.length();
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(20000);
         c.setReadTimeout(30000);
-        if (c.getResponseCode() != 200) throw new IOException("No se pudo descargar Linux (" + c.getResponseCode() + ")");
-        long total = c.getContentLengthLong();
-        try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(dest)) {
+        if (have > 0) c.setRequestProperty("Range", "bytes=" + have + "-");
+        int code = c.getResponseCode();
+        if (code == 200) have = 0; // the server ignored the range: start over
+        else if (code != 206) throw new IOException("No se pudo descargar Linux (" + code + ")");
+        long total = have + c.getContentLengthLong();
+        try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(dest, have > 0)) {
             byte[] buf = new byte[1 << 16];
-            long done = 0;
+            long done = have;
             int n;
             while ((n = in.read(buf)) > 0) {
                 out.write(buf, 0, n);

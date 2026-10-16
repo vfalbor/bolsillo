@@ -4,7 +4,7 @@
 # Usa un Ubuntu en proot para correr el instalador oficial de Claude Code sin parches.
 set -euo pipefail
 
-REPO="${BOLSILLO_REPO:-https://github.com/CAMBIAR/bolsillo.git}"
+REPO="${BOLSILLO_REPO:-https://github.com/vfalbor/bolsillo.git}"
 DISTRO=ubuntu
 
 say() { printf '\n\033[1;33m▸ %s\033[0m\n' "$*"; }

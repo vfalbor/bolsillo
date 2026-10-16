@@ -117,8 +117,31 @@ final class Linux {
         if (new File(nativeDir, "libproot-loader32.so").exists()) penv.put("PROOT_LOADER_32", nativeDir + "/libproot-loader32.so");
         penv.put("PROOT_TMP_DIR", tmp.getPath());
         penv.put("LD_LIBRARY_PATH", libLinks.getPath() + ":" + nativeDir);
+        // Before Linux 4.8 seccomp stopped programs in a different order and proot's seccomp
+        // shortcut crashes (assertion IS_IN_SYSENTER). Slower without it, but it works.
+        if (oldKernel()) penv.put("PROOT_NO_SECCOMP", "1");
         pb.redirectErrorStream(true);
         return pb;
+    }
+
+    static boolean oldKernel() {
+        return kernelBelow(4, 8);
+    }
+
+    /** Ubuntu 24.04 needs system calls that Linux 3.x lacks and proot can't emulate (apt fails in realpath). */
+    static void checkKernel() {
+        if (kernelBelow(4, 4)) throw new IllegalStateException("Este móvil es demasiado antiguo para Bolsillo: su sistema (Linux "
+                + System.getProperty("os.version") + ") no basta, hace falta Linux 4.4 o más nuevo (casi todos los móviles desde 2018)");
+    }
+
+    private static boolean kernelBelow(int wantMajor, int wantMinor) {
+        String[] v = System.getProperty("os.version", "").split("[.-]");
+        try {
+            int major = Integer.parseInt(v[0]), minor = Integer.parseInt(v[1]);
+            return major < wantMajor || (major == wantMajor && minor < wantMinor);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     static void mkdirs(File... dirs) {
