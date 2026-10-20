@@ -48,21 +48,21 @@ public class LinuxService extends Service {
     private static final String INSTALL_SCRIPT = String.join("\n",
             "set -e",
             "export DEBIAN_FRONTEND=noninteractive",
-            "echo '» Descargando la lista de programas'",
+            "echo '» Downloading the package list'",
             "apt-get update -q -o Acquire::Retries=4",
-            "echo '» Instalando git y herramientas'",
+            "echo '» Installing git and tools'",
             "apt-get install -y -q -o Acquire::Retries=4 --no-install-recommends ca-certificates curl git ripgrep bsdutils",
-            "echo '» Instalando Node.js'",
+            "echo '» Installing Node.js'",
             "A=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/'); V=" + NODE_VERSION + "; F=node-$V-linux-$A.tar.gz",
             "cd /tmp && curl -fsSLO --retry 4 --retry-all-errors -C - https://nodejs.org/dist/$V/$F",
             "curl -fsSL --retry 4 --retry-all-errors https://nodejs.org/dist/$V/SHASUMS256.txt | grep \" $F$\" | sha256sum -c -",
             "tar xzf $F -C /usr/local --strip-components=1 --no-same-owner && rm $F && cd /",
-            "echo '» Instalando Claude Code'",
+            "echo '» Installing Claude Code'",
             "npm install -g --no-fund --no-audit --fetch-retries=4 @anthropic-ai/claude-code || npm install -g --no-fund --no-audit --fetch-retries=4 @anthropic-ai/claude-code",
             "git config --global init.defaultBranch main",
             "claude --version",
             "touch /" + PACKAGES_MARK,
-            "echo '» Listo'");
+            "echo '» Done'");
 
     // Shared state read by the setup screen.
     static volatile String stage = "idle"; // download, extract, packages, starting, ready, error
@@ -121,7 +121,7 @@ public class LinuxService extends Service {
     public void onCreate() {
         super.onCreate();
         NotificationManager nm = getSystemService(NotificationManager.class);
-        nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Bolsillo en marcha", NotificationManager.IMPORTANCE_LOW));
+        nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Bolsillo running", NotificationManager.IMPORTANCE_LOW));
         startForeground(1, notification());
         wakeLock = getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "bolsillo:linux");
         wakeLock.acquire();
@@ -140,8 +140,8 @@ public class LinuxService extends Service {
         Intent stop = new Intent(this, LinuxService.class).setAction(ACTION_STOP);
         return new Notification.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat)
-                .setContentTitle("Bolsillo está en marcha")
-                .setContentText("Tu Linux y tus apps están funcionando en el móvil")
+                .setContentTitle("Bolsillo is running")
+                .setContentText("Your Linux and your apps are running on the phone")
                 .setContentIntent(PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE))
                 .addAction(new Notification.Action.Builder(null, "Parar",
                         PendingIntent.getService(this, 1, stop, PendingIntent.FLAG_IMMUTABLE)).build())
@@ -200,7 +200,7 @@ public class LinuxService extends Service {
         } catch (Throwable t) {
             if (!running) return;
             error = t.getMessage() != null ? t.getMessage() : t.toString();
-            set("error", "Algo falló al preparar tu Linux", -1);
+            set("error", "Something went wrong preparing your Linux", -1);
             log(error);
         }
     }
@@ -209,19 +209,19 @@ public class LinuxService extends Service {
         File archive = new File(getCacheDir(), "rootfs.tar.gz");
         String file = Linux.rootfsFile();
         waitForInternet("cdimage.ubuntu.com");
-        set("download", "Descargando Linux (unos 30 MB)", 0);
+        set("download", "Downloading Linux (about 30 MB)", 0);
         download(Linux.UBUNTU_RELEASES + file, archive);
         String expected = "";
         for (String line : fetchText(Linux.UBUNTU_RELEASES + "SHA256SUMS").split("\n")) {
             if (line.endsWith(" *" + file) || line.endsWith("  " + file)) expected = line.split("\\s+")[0];
         }
-        if (!expected.equalsIgnoreCase(sha256(archive))) throw new IOException("La descarga de Linux llegó dañada; vuelve a intentarlo");
+        if (!expected.equalsIgnoreCase(sha256(archive))) throw new IOException("The Linux download arrived damaged; try again");
         set("extract", "Descomprimiendo Linux", -1);
         File tmp = new File(linux.files, "linux.partial");
         deleteTree(tmp);
         TarGz.extract(archive, tmp);
         deleteTree(linux.rootfs);
-        if (!tmp.renameTo(linux.rootfs)) throw new IOException("No se pudo colocar Linux en su sitio");
+        if (!tmp.renameTo(linux.rootfs)) throw new IOException("Couldn't put Linux in place");
         archive.delete();
     }
 
@@ -232,8 +232,8 @@ public class LinuxService extends Service {
                 java.net.InetAddress.getByName(host);
                 return;
             } catch (java.net.UnknownHostException e) {
-                if (i >= 60 || !running) throw new IOException("No hay conexión a internet. Conéctate a una red y pulsa Reintentar");
-                if (i == 0) set(stage, "Esperando conexión a internet…", -1);
+                if (i >= 60 || !running) throw new IOException("No internet connection. Connect to a network and tap Retry");
+                if (i == 0) set(stage, "Waiting for an internet connection…", -1);
                 Thread.sleep(3000);
             }
         }
@@ -241,7 +241,7 @@ public class LinuxService extends Service {
 
     private void installPackages(Linux linux) throws Exception {
         waitForInternet("nodejs.org");
-        set("packages", "Instalando Node.js y Claude Code (unos minutos, una sola vez)", -1);
+        set("packages", "Installing Node.js and Claude Code (a few minutes, only once)", -1);
         Process p = linux.command(INSTALL_SCRIPT, new HashMap<>()).start();
         String last = "";
         try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
@@ -253,7 +253,7 @@ public class LinuxService extends Service {
             }
         }
         int code = p.waitFor();
-        if (code != 0) throw new IOException("La instalación de programas falló (código " + code + "): " + last);
+        if (code != 0) throw new IOException("Installing packages failed (code " + code + "): " + last);
     }
 
     /** Copies the Bolsillo server from the APK into Linux when the APK changed. */
@@ -278,7 +278,7 @@ public class LinuxService extends Service {
         env.put("BOLSILLO_BRIDGE_TOKEN", bridgeToken);
         env.put("USE_BUILTIN_RIPGREP", "0");
         while (running) {
-            set("starting", "Arrancando Bolsillo", -1);
+            set("starting", "Starting Bolsillo", -1);
             Process p = linux.command("cd /opt/bolsillo && exec node server.js", env).start();
             server = p;
             Thread pump = new Thread(() -> {
@@ -289,13 +289,13 @@ public class LinuxService extends Service {
             }, "bolsillo-log");
             pump.start();
             for (int i = 0; i < 240 && running && p.isAlive(); i++) {
-                if (portOpen(Linux.SERVER_PORT)) { set("ready", "Listo", 1); break; }
+                if (portOpen(Linux.SERVER_PORT)) { set("ready", "Ready", 1); break; }
                 Thread.sleep(250);
             }
             int code = p.waitFor();
             server = null;
             if (!running) return;
-            log("[Bolsillo se detuvo con código " + code + "; reiniciando]");
+            log("[Bolsillo stopped with code " + code + "; restarting]");
             Thread.sleep(2000);
         }
     }
@@ -320,7 +320,7 @@ public class LinuxService extends Service {
                 return;
             } catch (IOException e) {
                 if (attempt >= 5 || !running) throw e;
-                log("La descarga se cortó (" + e.getMessage() + "); reintentando…");
+                log("The download was cut off (" + e.getMessage() + "); retrying…");
                 Thread.sleep(3000L * attempt);
                 waitForInternet(new URL(url).getHost());
             }
@@ -335,7 +335,7 @@ public class LinuxService extends Service {
         if (have > 0) c.setRequestProperty("Range", "bytes=" + have + "-");
         int code = c.getResponseCode();
         if (code == 200) have = 0; // the server ignored the range: start over
-        else if (code != 206) throw new IOException("No se pudo descargar Linux (" + code + ")");
+        else if (code != 206) throw new IOException("Couldn't download Linux (" + code + ")");
         long total = have + c.getContentLengthLong();
         try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(dest, have > 0)) {
             byte[] buf = new byte[1 << 16];

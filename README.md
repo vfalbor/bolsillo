@@ -1,102 +1,102 @@
 # 👜 Bolsillo
 
-**Tu taller de apps en el móvil.** Le dices a Claude Code lo que quieres ("hazme la app de
-audiolibros de mi amigo, pero con cuentos de dinosaurios") y la construye y la ejecuta **en tu
-propio teléfono**. Sin PC y sin nube ajena: el código es tuyo.
+**Your app workshop on your phone.** You tell Claude Code what you want ("make me my friend's
+audiobook app, but with dinosaur stories") and it builds it and runs it **on your own phone**.
+No PC and no third-party cloud: the code is yours.
 
-- 🧭 **Tienda de apps**: *Mis apps* (como una pantalla de inicio), *Descubrir* (apps para obtener o
-  remezclar), *Crear* (describe tu idea) y *Ajustes*
-- 💬 Chat en lenguaje normal con Claude Code (una sesión por app, recuerda el contexto)
-- ▶️ Cada app se abre a pantalla completa; con **📲 Poner en el inicio** queda como un icono más del móvil
-- ↶ Cada cambio queda guardado (git): deshaz con un toque
-- 📱 Hardware del móvil para tus apps: voz, vibración, linterna, avisos, batería, ubicación, portapapeles
-- 🐧 Por debajo hay un **Linux de verdad** (Ubuntu en proot) con Node.js, git y Claude Code
+- 🧭 **App store**: *My apps* (like a home screen), *Discover* (apps to get or remix), *Create*
+  (describe your idea) and *Settings*
+- 💬 Plain-language chat with Claude Code (one session per app, it remembers the context)
+- ▶️ Every app opens full screen; with **📲 Add to home screen** it becomes one more icon on the phone
+- ↶ Every change is saved (git): undo with one tap
+- 📱 Phone hardware for your apps: voice, vibration, flashlight, notifications, battery, location, clipboard
+- 🐧 Underneath there's a **real Linux** (Ubuntu in proot) with Node.js, git and Claude Code
 
-🌐 Web y vídeo: **https://vfalbor.github.io/bolsillo/** · 🍏 iPhone sin instalar nada (experimental): [safari/](safari/README.md)
+🌐 Website and video: **https://vfalbor.github.io/bolsillo/** · 🍏 iPhone with nothing to install (experimental): [safari/](safari/README.md)
 
-## Instalar en Android (APK)
+## Install on Android (APK)
 
-1. Descarga `bolsillo-0.2.0.apk` en el móvil y ábrelo (acepta "instalar apps de origen desconocido").
-2. La primera vez prepara su Linux: descarga Ubuntu Base (~30 MB), Node.js y Claude Code. Necesita
-   conexión y unos minutos; después arranca en segundos.
-3. En **Ajustes → Iniciar sesión con Claude**: se abre el navegador, autorizas y pegas el código.
-   Vale una cuenta Pro/Max, o una clave de API.
+1. Download `bolsillo-0.3.0.apk` on the phone and open it (allow "install unknown apps").
+2. The first time it sets up its Linux: it downloads Ubuntu Base (~30 MB), Node.js and Claude Code.
+   It needs a connection and a few minutes; after that it starts in seconds.
+3. In **Settings → Sign in with Claude**: the browser opens, you authorize and paste the code.
+   A Pro/Max account works, or an API key.
 
-Requisitos: Android 8 o superior con Linux (kernel) 4.4 o más nuevo — casi todos los móviles
-desde 2018; si no, la app lo dice al arrancar —, procesador de 64 bits (arm64; x86_64 para el
-emulador), ~1,5 GB libres. Compatibilidad probada versión a versión en
-[docs/COMPATIBILIDAD.md](docs/COMPATIBILIDAD.md).
+Requirements: Android 8 or later with Linux (kernel) 4.4 or newer — almost every phone since
+2018; if not, the app says so at startup —, a 64-bit processor (arm64; x86_64 for the emulator),
+~1.5 GB free. Compatibility tested version by version in
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
-> **Android 12+ y "procesos fantasma".** Android mata apps que lanzan muchos procesos hijos
-> (Claude Code, git y node lo hacen). Si ves que Bolsillo se corta mientras Claude trabaja, activa
-> en *Opciones de desarrollador* "Desactivar restricciones de procesos secundarios", o desde un PC:
+> **Android 12+ and "phantom processes".** Android kills apps that launch many child processes
+> (Claude Code, git and node do). If Bolsillo gets cut off while Claude is working, turn on
+> "Disable child process restrictions" in *Developer options*, or from a PC:
 > `adb shell settings put global settings_enable_monitor_phantom_procs false`.
 
-### Probar en emuladores
+### Test on emulators
 
 ```bash
 scripts/test-emulator.sh "system-images;android-34;google_apis;x86_64"
 ```
 
-Arranca un emulador limpio, instala el APK y recorre el flujo completo (Linux, Node, Claude Code,
-crear y abrir una app, puente del móvil, segundo plano). Deja informe y captura en
-`test/emulator-results/<versión>/`.
+Boots a clean emulator, installs the APK and walks through the whole flow (Linux, Node, Claude
+Code, creating and opening an app, phone bridge, background). Leaves a report and a screenshot in
+`test/emulator-results/<version>/`.
 
-### Compilar el APK
+### Build the APK
 
 ```bash
-./scripts/build-apk.sh     # → android/app/build/outputs/apk/release/bolsillo-<versión>.apk
+./scripts/build-apk.sh     # → android/app/build/outputs/apk/release/bolsillo-<version>.apk
 ```
 
-Necesita JDK 17+ y el SDK de Android (`ANDROID_HOME`). Descarga `proot` ya compilado para Android
-(de Termux) la primera vez. Firma con `BOLSILLO_KEYSTORE`/`BOLSILLO_KEYSTORE_PASS` si existen; si no,
-con la clave de depuración.
+Needs JDK 17+ and the Android SDK (`ANDROID_HOME`). Downloads a prebuilt Android `proot` (from
+Termux) the first time. Signs with `BOLSILLO_KEYSTORE`/`BOLSILLO_KEYSTORE_PASS` if they exist;
+otherwise with the debug key.
 
-### Alternativa: Termux
+### Alternative: Termux
 
-Si prefieres Termux: instala **Termux** y **Termux:API** desde F-Droid y ejecuta
-[`scripts/install-termux.sh`](scripts/install-termux.sh). El hardware llega vía `termux-*`.
+If you prefer Termux: install **Termux** and **Termux:API** from F-Droid and run
+[`scripts/install-termux.sh`](scripts/install-termux.sh). Hardware access goes through `termux-*`.
 
-## Probar en un ordenador (Linux/macOS)
+## Try it on a computer (Linux/macOS)
 
 ```bash
 npm start          # → http://127.0.0.1:7700
 npm test
 ```
 
-Variables: `PORT` (7700), `HOST` (127.0.0.1; con `0.0.0.0` exige token y lo imprime),
-`BOLSILLO_DATA` (dónde se guardan los proyectos), `BOLSILLO_APPS_PORT` (7701+), `CLAUDE_BIN`,
-`BOLSILLO_BRIDGE`/`BOLSILLO_BRIDGE_TOKEN` (puente al hardware; los pone la app de Android).
+Variables: `PORT` (7700), `HOST` (127.0.0.1; with `0.0.0.0` it requires a token and prints it),
+`BOLSILLO_DATA` (where projects are stored), `BOLSILLO_APPS_PORT` (7701+), `CLAUDE_BIN`,
+`BOLSILLO_BRIDGE`/`BOLSILLO_BRIDGE_TOKEN` (bridge to the hardware; the Android app sets them).
 
-## Cómo funciona
+## How it works
 
 ```
-┌──────────────── APK de Bolsillo ────────────────────────────────────────────┐
-│ WebView (tienda + chat) ──HTTP──► 127.0.0.1:7700                             │
+┌──────────────── Bolsillo APK ────────────────────────────────────────────────┐
+│ WebView (store + chat) ──HTTP──► 127.0.0.1:7700                              │
 │                                                                              │
-│ LinuxService (servicio en primer plano)                                      │
+│ LinuxService (foreground service)                                            │
 │   └─ proot ─► Ubuntu Base (files/linux)                                      │
 │        └─ node /opt/bolsillo/server.js                                       │
-│             ├─► claude -p --output-format stream-json   (en cada proyecto)   │
-│             ├─► Runner: cada app en su puerto (7701+)                        │
+│             ├─► claude -p --output-format stream-json   (in each project)    │
+│             ├─► Runner: each app on its own port (7701+)                     │
 │             └─► /api/device/* ──HTTP+token──► DeviceBridge (Java, :7699)     │
-│                                                 voz, vibración, linterna,    │
-│                                                 avisos, accesos directos…    │
-│ AppActivity: cada app abierta desde su icono, en su propia ventana           │
+│                                                 voice, vibration, flashlight,│
+│                                                 notifications, shortcuts…    │
+│ AppActivity: each app opened from its icon, in its own window                │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- `android/`: la app nativa (Java, sin dependencias). `Linux.java` arma el comando `proot`,
-  `LinuxService.java` instala y mantiene vivo el Linux, `DeviceBridge.java` expone el hardware,
-  `assets/setup.html` es la pantalla de primera instalación.
-- El servidor Node (`server.js`, `lib/`, `public/`, `templates/`) viaja dentro del APK y se copia al
-  Linux cuando cambia la versión.
-- Cada proyecto incluye un `CLAUDE.md` con las reglas del entorno y un `bolsillo.json` que dice
-  cómo ejecutarlo. Plantillas en `templates/<id>/` (`name`, `emoji`, `category`, `description`);
-  `_shared/` se copia en todos los proyectos.
+- `android/`: the native app (Java, no dependencies). `Linux.java` builds the `proot` command,
+  `LinuxService.java` installs Linux and keeps it alive, `DeviceBridge.java` exposes the hardware,
+  `assets/setup.html` is the first-install screen.
+- The Node server (`server.js`, `lib/`, `public/`, `templates/`) travels inside the APK and is copied
+  into Linux when the version changes.
+- Every project includes a `CLAUDE.md` with the environment's rules and a `bolsillo.json` that says
+  how to run it. Templates live in `templates/<id>/` (`name`, `emoji`, `category`, `description`);
+  `_shared/` is copied into every project.
 
-**Por qué `targetSdk 28`:** desde Android 10, las apps que apuntan a versiones nuevas no pueden
-ejecutar programas desde sus propios ficheros, y un Linux en el móvil necesita justo eso (Termux
-hace lo mismo). Se instala sin problema como APK; Google Play no lo aceptaría.
+**Why `targetSdk 28`:** since Android 10, apps targeting newer versions can't run programs from
+their own files, and a Linux on the phone needs exactly that (Termux does the same). It installs
+fine as an APK; Google Play wouldn't accept it.
 
-Plan completo y fases: [`docs/PLAN.md`](docs/PLAN.md).
+Full plan and phases: [`docs/PLAN.md`](docs/PLAN.md).

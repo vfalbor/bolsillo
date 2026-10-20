@@ -13,7 +13,7 @@ fetch() { # arch package -> extracted dir
   local arch=$1 pkg=$2 file
   [ -f "$work/Packages-$arch" ] || curl -fsSL "$repo/dists/stable/main/binary-$arch/Packages.gz" | gzip -dc > "$work/Packages-$arch"
   file=$(awk -v p="$pkg" '$1=="Package:"{cur=$2} cur==p && $1=="Filename:"{print $2; exit}' "$work/Packages-$arch")
-  [ -n "$file" ] || { echo "No encuentro $pkg para $arch" >&2; exit 1; }
+  [ -n "$file" ] || { echo "Can't find $pkg for $arch" >&2; exit 1; }
   mkdir -p "$work/$arch/$pkg"
   curl -fsSL -o "$work/$arch/$pkg.deb" "$repo/$file"
   (cd "$work/$arch/$pkg" && ar x "../$pkg.deb" && tar xf data.tar.*)

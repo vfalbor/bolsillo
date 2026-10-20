@@ -1,7 +1,7 @@
 {
   "name": "bolsillo",
   "version": "0.1.0",
-  "description": "Tu taller de software en el móvil: pide apps a Claude Code y ejecútalas en tu teléfono.",
+  "description": "Your software workshop on your phone: ask Claude Code for apps and run them on your phone.",
   "type": "module",
   "bin": { "bolsillo": "server.js" },
   "scripts": {

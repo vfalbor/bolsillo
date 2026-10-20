@@ -46,7 +46,7 @@ final class TarGz {
                 File out = new File(dest, name);
                 // Lexical check: root filesystems have absolute symlinks that must not be resolved here.
                 if (!out.toPath().toAbsolutePath().normalize().startsWith(root)) {
-                    throw new IOException("Ruta no permitida en el archivo: " + name);
+                    throw new IOException("Path not allowed in the archive: " + name);
                 }
                 if (type == '5') {
                     out.mkdirs();
@@ -89,7 +89,7 @@ final class TarGz {
 
     private static byte[] readData(InputStream in, long size) throws IOException {
         byte[] data = new byte[(int) size];
-        if (!readFully(in, data)) throw new IOException("Archivo cortado");
+        if (!readFully(in, data)) throw new IOException("Truncated archive");
         skipPadding(in, size);
         return data;
     }
@@ -98,7 +98,7 @@ final class TarGz {
         byte[] buf = new byte[1 << 16];
         while (size > 0) {
             int n = in.read(buf, 0, (int) Math.min(buf.length, size));
-            if (n < 0) throw new IOException("Archivo cortado");
+            if (n < 0) throw new IOException("Truncated archive");
             out.write(buf, 0, n);
             size -= n;
         }

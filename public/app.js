@@ -1,7 +1,7 @@
 // Bolsillo UI: an app store for the apps you make on your phone, plus a chat that tells
 // Claude Code what to build. Navigation lives in the URL hash so the phone's back button works:
 //   #apps #store #create #settings   tabs
-//   #app/<id>     app page        #taller/<id>   talk to Claude about it        #play/<id>   the app itself
+//   #app/<id>     app page        #workshop/<id> talk to Claude about it        #play/<id>   the app itself
 const $ = (id) => document.getElementById(id);
 const state = { info: null, templates: [], projects: [], project: null, busy: false };
 
@@ -55,7 +55,7 @@ const back = () => (history.length > 1 ? history.back() : go('#apps'));
 // ---------------- Router ----------------
 async function route() {
   const [name, id] = location.hash.slice(1).split('/');
-  const pages = { app: 'detail', taller: 'workshop', play: 'player' };
+  const pages = { app: 'detail', workshop: 'workshop', play: 'player' };
   for (const p of ['detail', 'workshop', 'player']) $(p).hidden = pages[name] !== p;
   if (name !== 'play') $('frame').removeAttribute('src');
   const tab = pages[name] ? null : (['apps', 'store', 'create', 'settings'].includes(name) ? name : 'apps');
@@ -64,7 +64,7 @@ async function route() {
   try {
     if (tab) return await showTab(tab);
     if (name === 'app') return await showDetail(id);
-    if (name === 'taller') return await showWorkshop(id);
+    if (name === 'workshop') return await showWorkshop(id);
     if (name === 'play') return await showPlayer(id);
   } catch (err) {
     toast(err.message);
@@ -87,27 +87,27 @@ async function loadInfo() {
   return state.info;
 }
 
-// ---------------- Mis apps ----------------
+// ---------------- My apps ----------------
 async function renderApps() {
   const [projects, info] = await Promise.all([api('/projects'), loadInfo()]);
   state.projects = projects;
   const acc = info.account || {};
   $('connectBanner').hidden = !!acc.loggedIn;
-  $('status').textContent = !acc.installed ? '⚠️ Claude Code no está instalado'
-    : `${projects.length} app${projects.length === 1 ? '' : 's'} · ${info.android ? 'en tu móvil 📱' : 'en este equipo'}`;
+  $('status').textContent = !acc.installed ? '⚠️ Claude Code is not installed'
+    : `${projects.length} app${projects.length === 1 ? '' : 's'} · ${info.android ? 'on your phone 📱' : 'on this computer'}`;
   $('grid').replaceChildren(...projects.map((p) => el('a', { className: 'app', href: `#app/${p.id}` },
     tile(p), el('span', { className: 'app-name', textContent: p.name }),
-    p.busy ? el('span', { className: 'badge work', title: 'Claude está trabajando' }) : p.running ? el('span', { className: 'badge', title: 'En marcha' }) : null)));
+    p.busy ? el('span', { className: 'badge work', title: 'Claude is working' }) : p.running ? el('span', { className: 'badge', title: 'Running' }) : null)));
   $('noApps').hidden = projects.length > 0;
 }
 
-// ---------------- Descubrir ----------------
+// ---------------- Discover ----------------
 async function renderStore() {
   state.templates = await api('/templates');
-  const items = state.templates.filter((t) => t.id !== 'web-basica');
-  const featured = items.find((t) => t.id === 'audiolibros') || items[0];
+  const items = state.templates.filter((t) => t.id !== 'basic-web');
+  const featured = items.find((t) => t.id === 'audiobooks') || items[0];
   $('featured').replaceChildren(featured ? el('button', { className: 'featured', onclick: () => openTemplate(featured) },
-    el('span', { className: 'f-label', textContent: 'Destacada' }),
+    el('span', { className: 'f-label', textContent: 'Featured' }),
     tile(featured, 'lg'),
     el('span', { className: 'f-name', textContent: featured.name }),
     el('span', { className: 'f-desc', textContent: featured.description || '' })) : '');
@@ -117,10 +117,10 @@ async function renderStore() {
       el('button', { className: 'body', onclick: () => openTemplate(t) },
         el('div', { className: 'name', textContent: t.name }),
         el('div', { className: 'desc', textContent: t.category ? `${t.category} · ${t.description || ''}` : t.description || '' })),
-      el('button', { className: 'pill small', textContent: 'Obtener', onclick: () => openTemplate(t) }))),
+      el('button', { className: 'pill small', textContent: 'Get', onclick: () => openTemplate(t) }))),
     el('a', { className: 'card new', href: '#create' }, el('span', { className: 'tile', textContent: '＋' }),
-      el('span', { className: 'body' }, el('div', { className: 'name', textContent: 'Empieza de cero' }),
-        el('div', { className: 'desc', textContent: 'Describe tu idea y Claude la construye' }))));
+      el('span', { className: 'body' }, el('div', { className: 'name', textContent: 'Start from scratch' }),
+        el('div', { className: 'desc', textContent: 'Describe your idea and Claude builds it' }))));
 }
 
 function openTemplate(t) {
@@ -130,7 +130,7 @@ function openTemplate(t) {
   $('tName').textContent = t.name;
   $('tCat').textContent = t.category || '';
   $('tDesc').textContent = t.description || '';
-  const label = () => { $('tGo').textContent = form.idea.value.trim() ? '✨ Remezclar con Claude' : 'Obtener'; };
+  const label = () => { $('tGo').textContent = form.idea.value.trim() ? '✨ Remix with Claude' : 'Get'; };
   form.idea.oninput = label;
   label();
   const dialog = $('tplDialog');
@@ -139,21 +139,21 @@ function openTemplate(t) {
     const idea = form.idea.value.trim();
     try {
       const p = await api('/projects', { method: 'POST', body: { name: t.name, template: t.id, idea } });
-      if (idea) { pendingMessage = idea; go(`#taller/${p.id}`); } else { toast(`«${p.name}» ya está en Mis apps`); go(`#app/${p.id}`); }
+      if (idea) { pendingMessage = idea; go(`#workshop/${p.id}`); } else { toast(`“${p.name}” is now in My apps`); go(`#app/${p.id}`); }
     } catch (err) { toast(err.message); }
   };
   dialog.showModal();
 }
 
-// ---------------- Crear ----------------
-const IDEAS = ['Una lista de tareas para la familia con fotos', 'Un diario de lo que come el bebé', 'Un juego de preguntas de capitales', 'Un contador de días sin fumar'];
+// ---------------- Create ----------------
+const IDEAS = ['A family to-do list with photos', 'A diary of what the baby eats', 'A quiz game about capital cities', 'A counter of days without smoking'];
 let pendingMessage = null;
 
 function renderCreate() {
   const form = $('createForm');
   $('ideaChips').replaceChildren(...IDEAS.map((idea) => el('button', {
     type: 'button', className: 'chip', textContent: idea,
-    onclick: () => { form.idea.value = idea; if (!form.name.value) form.name.value = idea.replace(/^(Un|Una) /, '').split(' ').slice(0, 3).join(' '); },
+    onclick: () => { form.idea.value = idea; if (!form.name.value) form.name.value = idea.replace(/^(An?|The) /, '').split(' ').slice(0, 3).join(' '); },
   })));
 }
 
@@ -161,10 +161,10 @@ $('createForm').onsubmit = async (e) => {
   e.preventDefault();
   const form = e.target;
   try {
-    const p = await api('/projects', { method: 'POST', body: { name: form.name.value.trim(), template: 'web-basica', idea: form.idea.value.trim() } });
+    const p = await api('/projects', { method: 'POST', body: { name: form.name.value.trim(), template: 'basic-web', idea: form.idea.value.trim() } });
     pendingMessage = form.idea.value.trim();
     form.reset();
-    go(`#taller/${p.id}`);
+    go(`#workshop/${p.id}`);
   } catch (err) { toast(err.message); }
 };
 
@@ -175,34 +175,34 @@ async function showDetail(id) {
   if (!state.info) await loadInfo();
   $('dIcon').replaceWith(Object.assign(tile(p, 'xl'), { id: 'dIcon' }));
   $('dName').textContent = p.name;
-  $('dMeta').textContent = [p.busy ? 'Claude está trabajando…' : p.running ? '● En marcha' : null,
-    `${p.history?.length || 0} versión${p.history?.length === 1 ? '' : 'es'}`].filter(Boolean).join(' · ');
+  $('dMeta').textContent = [p.busy ? 'Claude is working…' : p.running ? '● Running' : null,
+    `${p.history?.length || 0} version${p.history?.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
   $('dDesc').textContent = p.description || p.idea || '';
   $('dShortcut').hidden = !state.info?.android;
   $('dHistory').replaceChildren(...(p.history || []).slice(0, 8).map((h) =>
     el('li', {}, el('span', { textContent: h.message }), el('time', { textContent: new Date(h.at).toLocaleString() }))));
   $('dUndo').disabled = (p.history?.length || 0) < 2 || p.busy;
-  $('dRun').textContent = p.running ? `En marcha en el puerto ${p.port}` : 'Parada';
+  $('dRun').textContent = p.running ? `Running on port ${p.port}` : 'Stopped';
   $('dLogs').textContent = (p.logs || []).join('\n') || '—';
   $('dStop').hidden = !p.running;
 }
 
 $('dOpen').onclick = () => go(`#play/${state.project.id}`);
-$('dChange').onclick = () => go(`#taller/${state.project.id}`);
+$('dChange').onclick = () => go(`#workshop/${state.project.id}`);
 $('dShortcut').onclick = async () => {
   const p = state.project;
   try {
     await api('/device/shortcut', { method: 'POST', body: { id: p.id, name: p.name, emoji: p.emoji || '📱' } });
-    toast('Listo: búscala en la pantalla de inicio');
+    toast('Done: look for it on your home screen');
   } catch (err) { toast(err.message); }
 };
 $('dUndo').onclick = async () => {
-  if (!confirm('¿Deshacer el último cambio que hizo Claude?')) return;
-  try { await api(`/projects/${state.project.id}/undo`, { method: 'POST' }); toast('Cambio deshecho'); showDetail(state.project.id); } catch (err) { toast(err.message); }
+  if (!confirm('Undo the last change Claude made?')) return;
+  try { await api(`/projects/${state.project.id}/undo`, { method: 'POST' }); toast('Change undone'); showDetail(state.project.id); } catch (err) { toast(err.message); }
 };
 $('dStop').onclick = async () => { await api(`/projects/${state.project.id}/stop`, { method: 'POST' }); showDetail(state.project.id); };
 $('dDelete').onclick = async () => {
-  if (!confirm(`¿Borrar «${state.project.name}» para siempre?`)) return;
+  if (!confirm(`Delete “${state.project.name}” forever?`)) return;
   await api(`/projects/${state.project.id}`, { method: 'DELETE' });
   go('#apps');
 };
@@ -221,7 +221,7 @@ async function showPlayer(id) {
   $('frame').src = appUrl(state.project);
 }
 $('plReload').onclick = () => { $('frame').src = appUrl(state.project) + '?t=' + Date.now(); };
-$('plChange').onclick = () => go(`#taller/${state.project.id}`);
+$('plChange').onclick = () => go(`#workshop/${state.project.id}`);
 
 // ---------------- Workshop (chat with Claude) ----------------
 async function showWorkshop(id) {
@@ -239,12 +239,12 @@ function renderChat(chat) {
   const box = $('messages');
   box.replaceChildren();
   if (!chat.length) {
-    box.append(el('div', { className: 'msg system', textContent: 'Cuéntale a Claude qué quieres cambiar. Por ejemplo:' }));
+    box.append(el('div', { className: 'msg system', textContent: 'Tell Claude what you want to change. For example:' }));
     const ideas = {
-      audiolibros: ['Cambia los colores a tonos del espacio y pon cohetes', 'Añade un cuento sobre un perro que se llama Toby', 'Que al terminar un cuento suene una melodía suave'],
-      'lista-compra': ['Organiza la lista por pasillos del súper', 'Que pueda compartir la lista por WhatsApp', 'Añade el precio y calcula el total'],
-      temporizador: ['Añade recetas con sus tiempos', 'Que el aviso sea una canción', 'Pon modo pantalla siempre encendida'],
-    }[state.project.template] || ['Hazme una lista de tareas con fotos', 'Un temporizador de cocina con voz', 'Un álbum para guardar los dibujos de mi hija'];
+      audiobooks: ['Change the colors to space tones and add rockets', 'Add a story about a dog called Toby', 'Play a soft tune when a story ends'],
+      'shopping-list': ['Sort the list by supermarket aisle', 'Let me share the list on WhatsApp', 'Add prices and work out the total'],
+      'kitchen-timer': ['Add recipes with their times', 'Make the alarm a song', 'Keep the screen always on'],
+    }[state.project.template] || ['Make me a to-do list with photos', 'A kitchen timer that talks', "An album to keep my daughter's drawings"];
     box.append(el('div', { className: 'suggest' }, ...ideas.map((t) => el('button', { textContent: t, onclick: () => send(t) }))));
   }
   for (const m of chat) addMessage(m);
@@ -256,7 +256,7 @@ function addMessage(m) {
   if (m.role === 'assistant') node.innerHTML = md(m.text || ''); else node.textContent = m.text;
   if (m.steps?.length) {
     node.append(el('details', { className: 'steps' },
-      el('summary', { textContent: `${m.steps.length} paso${m.steps.length > 1 ? 's' : ''}` }),
+      el('summary', { textContent: `${m.steps.length} step${m.steps.length > 1 ? 's' : ''}` }),
       el('ul', {}, ...m.steps.map((s) => el('li', { textContent: s })))));
   }
   $('messages').querySelector('.suggest')?.remove();
@@ -269,13 +269,13 @@ function addMessage(m) {
 async function send(text) {
   if (state.busy || !text) return;
   if (state.info && !state.info.account?.loggedIn) {
-    addMessage({ role: 'system', text: 'Primero conecta tu cuenta de Claude en Ajustes.' });
+    addMessage({ role: 'system', text: 'First connect your Claude account in Settings.' });
     return;
   }
   const id = state.project.id;
   setBusy(true);
   addMessage({ role: 'user', text });
-  const working = el('div', { className: 'msg assistant' }, el('div', { className: 'working' }, el('span', { className: 'spinner' }), el('span', { textContent: 'Pensando…' })));
+  const working = el('div', { className: 'msg assistant' }, el('div', { className: 'working' }, el('span', { className: 'spinner' }), el('span', { textContent: 'Thinking…' })));
   $('messages').append(working);
   const status = working.querySelector('.working span:last-child');
   const steps = [];
@@ -298,10 +298,10 @@ async function send(text) {
         buf = buf.slice(cut + 2);
         const ev = JSON.parse(line);
         if (ev.type === 'tool') { steps.push(ev.label); status.textContent = ev.label; }
-        if (ev.type === 'text') { reply += (reply ? '\n\n' : '') + ev.text; status.textContent = 'Escribiendo…'; }
+        if (ev.type === 'text') { reply += (reply ? '\n\n' : '') + ev.text; status.textContent = 'Writing…'; }
         if (ev.type === 'done') {
           working.remove();
-          addMessage({ role: 'assistant', text: reply || ev.error || 'Hecho.', steps, ok: ev.ok });
+          addMessage({ role: 'assistant', text: reply || ev.error || 'Done.', steps, ok: ev.ok });
           if (ev.ok) addTryButton();
         }
       }
@@ -317,7 +317,7 @@ async function send(text) {
 function addTryButton() {
   const p = state.project;
   if (!p) return;
-  $('messages').append(el('div', { className: 'msg system' }, el('button', { className: 'pill primary small', textContent: '▶ Probar la app', onclick: () => go(`#play/${p.id}`) })));
+  $('messages').append(el('div', { className: 'msg system' }, el('button', { className: 'pill primary small', textContent: '▶ Try the app', onclick: () => go(`#play/${p.id}`) })));
   $('messages').scrollTop = $('messages').scrollHeight;
   // Refresh name/emoji in case Claude changed them.
   api(`/projects/${p.id}`).then((fresh) => { $('wIcon').textContent = fresh.emoji || '📱'; $('wName').textContent = fresh.name; }).catch(() => {});
@@ -327,8 +327,8 @@ function addTryButton() {
 async function pollWhileBusy() {
   setBusy(true);
   const id = state.project.id;
-  const note = addMessage({ role: 'system', text: 'Claude sigue trabajando en segundo plano…' });
-  while (location.hash === `#taller/${id}`) {
+  const note = addMessage({ role: 'system', text: 'Claude is still working in the background…' });
+  while (location.hash === `#workshop/${id}`) {
     await new Promise((r) => setTimeout(r, 3000));
     const p = await api(`/projects/${id}`).catch(() => null);
     if (p && !p.busy) { note.remove(); state.project = p; renderChat(p.chat); break; }
@@ -354,14 +354,14 @@ $('input').addEventListener('keydown', (e) => {
 });
 $('input').addEventListener('input', (e) => { e.target.style.height = ''; e.target.style.height = `${e.target.scrollHeight}px`; });
 
-// ---------------- Ajustes ----------------
+// ---------------- Settings ----------------
 async function renderSettings() {
   const info = await loadInfo();
   renderAccount(info.account || {});
   const caps = info.device || [];
   const any = caps.some((c) => c.available);
-  $('phoneSub').textContent = any ? 'Lo que tus apps pueden usar del teléfono:'
-    : info.android ? 'No se pudo hablar con el móvil.' : 'Aquí no hay acceso al hardware (esto no es la app de Android).';
+  $('phoneSub').textContent = any ? 'What your apps can use on your phone:'
+    : info.android ? "Couldn't talk to the phone." : 'No hardware access here (this is not the Android app).';
   $('caps').replaceChildren(...caps.map((c) => el('li', { className: c.available ? 'yes' : 'no' },
     el('span', { textContent: c.available ? '✓' : '—' }), el('span', { textContent: c.desc }))));
   $('testVoice').hidden = !caps.find((c) => c.name === 'speak')?.available;
@@ -372,10 +372,10 @@ function renderAccount(acc) {
   const ok = acc.loggedIn;
   const wait = acc.checking && !ok;
   $('accIco').textContent = !acc.installed ? '⚠️' : wait ? '⏳' : ok ? '✅' : '🔑';
-  $('accTitle').textContent = !acc.installed ? 'Claude Code no está instalado' : wait ? 'Comprobando Claude Code…' : ok ? 'Conectado' : 'Sin conectar';
-  $('accSub').textContent = !acc.installed ? 'Reinstala Bolsillo o revisa la consola.'
-    : wait ? 'En un Linux emulado tarda unos minutos la primera vez.'
-    : ok ? (acc.method === 'key' ? 'Usando la clave guardada' : 'Con tu cuenta de Claude') : 'Claude necesita tu cuenta para construir apps.';
+  $('accTitle').textContent = !acc.installed ? 'Claude Code is not installed' : wait ? 'Checking Claude Code…' : ok ? 'Connected' : 'Not connected';
+  $('accSub').textContent = !acc.installed ? 'Reinstall Bolsillo or check the console.'
+    : wait ? 'On an emulated Linux this takes a few minutes the first time.'
+    : ok ? (acc.method === 'key' ? 'Using the saved key' : 'With your Claude account') : 'Claude needs your account to build apps.';
   $('loginBox').hidden = ok || !acc.installed || wait;
   if (wait) setTimeout(async () => renderAccount((await loadInfo()).account || {}), 10000);
   $('forgetKey').hidden = acc.method !== 'key';
@@ -383,7 +383,7 @@ function renderAccount(acc) {
 
 let loginPoll;
 $('loginStart').onclick = async () => {
-  $('loginMsg').textContent = 'Preparando…';
+  $('loginMsg').textContent = 'Getting ready…';
   $('loginStart').disabled = true;
   try {
     let s = await api('/claude/login', { method: 'POST' });
@@ -403,11 +403,11 @@ function showLogin(s) {
   $('loginStart').hidden = !!s.url && s.state !== 'error';
   $('loginStart').disabled = s.state === 'waiting' && !s.url;
   $('loginMsg').textContent = {
-    waiting: s.url ? '' : 'Preparando…', checking: 'Comprobando el código…',
-    done: '¡Conectado! Ya puedes crear apps.', error: `No se pudo: ${s.error || 'inténtalo otra vez'}`,
+    waiting: s.url ? '' : 'Getting ready…', checking: 'Checking the code…',
+    done: 'Connected! You can make apps now.', error: `It didn't work: ${s.error || 'try again'}`,
   }[s.state] || '';
   if (s.state === 'done') { state.info = null; setTimeout(renderSettings, 800); }
-  if (s.state === 'error') $('loginStart').textContent = 'Intentarlo otra vez';
+  if (s.state === 'error') $('loginStart').textContent = 'Try again';
 }
 
 $('codeForm').onsubmit = async (e) => {
@@ -416,11 +416,11 @@ $('codeForm').onsubmit = async (e) => {
 };
 $('keyForm').onsubmit = async (e) => {
   e.preventDefault();
-  try { renderAccount(await api('/claude/key', { method: 'POST', body: { key: e.target.key.value } })); e.target.reset(); toast('Clave guardada'); } catch (err) { toast(err.message); }
+  try { renderAccount(await api('/claude/key', { method: 'POST', body: { key: e.target.key.value } })); e.target.reset(); toast('Key saved'); } catch (err) { toast(err.message); }
 };
 $('forgetKey').onclick = async () => { renderAccount(await api('/claude/key', { method: 'DELETE' })); };
 $('connectBanner').onclick = () => go('#settings');
-$('testVoice').onclick = () => api('/device/speak', { method: 'POST', body: { text: 'Hola, soy tu móvil. Bolsillo funciona.' } }).catch((err) => toast(err.message));
+$('testVoice').onclick = () => api('/device/speak', { method: 'POST', body: { text: "Hi, I'm your phone. Bolsillo works." } }).catch((err) => toast(err.message));
 
 $('shellForm').onsubmit = async (e) => {
   e.preventDefault();
@@ -428,7 +428,7 @@ $('shellForm').onsubmit = async (e) => {
   out.textContent = `$ ${e.target.cmd.value}\n…`;
   try {
     const r = await api('/shell', { method: 'POST', body: { cmd: e.target.cmd.value } });
-    out.textContent = `$ ${e.target.cmd.value}\n${r.output}${r.code ? `\n[código ${r.code}]` : ''}`;
+    out.textContent = `$ ${e.target.cmd.value}\n${r.output}${r.code ? `\n[exit code ${r.code}]` : ''}`;
   } catch (err) { out.textContent = err.message; }
 };
 

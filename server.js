@@ -54,8 +54,8 @@ export function createApp({
     // The page sends it; stty applies it to BOLSILLO_TTY and the kernel tells the program there (SIGWINCH).
     ['POST', /^\/api\/debug\/tty$/, (_, body) => {
       const tty = process.env.BOLSILLO_TTY, cols = Number(body.cols), rows = Number(body.rows);
-      if (!tty) throw httpError(404, 'Sin terminal que ajustar');
-      if (!(cols >= 20 && cols <= 500 && rows >= 5 && rows <= 300)) throw httpError(400, 'Tamaño raro');
+      if (!tty) throw httpError(404, 'No terminal to resize');
+      if (!(cols >= 20 && cols <= 500 && rows >= 5 && rows <= 300)) throw httpError(400, 'Odd size');
       return new Promise((resolve) => execFile('stty', ['-F', tty, 'cols', String(cols), 'rows', String(rows)], (err) => resolve({ ok: !err, cols, rows, error: err?.message })));
     }],
     ['GET', /^\/api\/claude$/, () => account.status({ fresh: true })],
@@ -69,7 +69,7 @@ export function createApp({
     ['GET', /^\/api\/templates$/, () => projects.listTemplates()],
     ['GET', /^\/api\/projects$/, () => projects.list().map((p) => ({ ...p, ...runner.status(p.id), busy: turns.has(p.id) }))],
     ['POST', /^\/api\/projects$/, (_, body) => {
-      if (!body.name?.trim()) throw httpError(400, 'Falta el nombre');
+      if (!body.name?.trim()) throw httpError(400, 'The name is missing');
       return projects.create({ name: body.name.trim(), template: body.template, idea: body.idea || '' });
     }],
     ['GET', /^\/api\/projects\/([\w-]+)$/, (m) => {
@@ -90,9 +90,9 @@ export function createApp({
     ['POST', /^\/api\/projects\/([\w-]+)\/stop$/, (m) => { runner.stop(m[1]); return { ok: true }; }],
     ['POST', /^\/api\/projects\/([\w-]+)\/undo$/, (m) => {
       mustGet(m[1]);
-      if (turns.has(m[1])) throw httpError(409, 'Espera a que Claude termine');
+      if (turns.has(m[1])) throw httpError(409, 'Wait for Claude to finish');
       projects.undo(m[1]);
-      projects.appendChat(m[1], { role: 'system', text: 'Se deshizo el último cambio.' });
+      projects.appendChat(m[1], { role: 'system', text: 'The last change was undone.' });
       return { ok: true };
     }],
     ['POST', /^\/api\/projects\/([\w-]+)\/cancel$/, (m) => { turns.get(m[1])?.kill(); return { ok: true }; }],
@@ -102,7 +102,7 @@ export function createApp({
 
   function mustGet(id) {
     const p = projects.get(id);
-    if (!p) throw httpError(404, 'Proyecto no encontrado');
+    if (!p) throw httpError(404, 'Project not found');
     return p;
   }
 
@@ -110,8 +110,8 @@ export function createApp({
   function chat(id, body, res) {
     const p = mustGet(id);
     const message = String(body.message || '').trim();
-    if (!message) throw httpError(400, 'Mensaje vacío');
-    if (turns.has(id)) throw httpError(409, 'Claude ya está trabajando en este proyecto');
+    if (!message) throw httpError(400, 'Empty message');
+    if (turns.has(id)) throw httpError(409, 'Claude is already working on this project');
 
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
     const send = (ev) => res.write(`data: ${JSON.stringify(ev)}\n\n`);
@@ -144,7 +144,7 @@ export function createApp({
     try {
       const url = new URL(req.url, 'http://localhost');
       if (token && !authorized(req, url, token)) {
-        res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' }).end('Falta el token: abre la URL que mostró Bolsillo al arrancar.');
+        res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' }).end('Missing token: open the URL Bolsillo showed when it started.');
         return;
       }
       if (token && url.searchParams.get('token') === token) {
@@ -170,7 +170,7 @@ export function createApp({
           return json(res, 200, result);
         }
       }
-      json(res, 404, { error: 'Ruta no encontrada' });
+      json(res, 404, { error: 'Route not found' });
     } catch (err) {
       if (res.headersSent) { res.end(); return; }
       json(res, err.status || 500, { error: err.message });
@@ -179,7 +179,7 @@ export function createApp({
 
   // A tiny Linux console for the settings screen: runs one command, returns its output.
   function shell(cmd, cwd) {
-    if (!cmd.trim()) throw httpError(400, 'Escribe un comando');
+    if (!cmd.trim()) throw httpError(400, 'Type a command');
     return new Promise((resolve) => {
       execFile('sh', ['-c', cmd], { cwd, timeout: 120000, maxBuffer: 1 << 20, env: account.childEnv() }, (err, stdout, stderr) => {
         resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, output: `${stdout}${stderr}`.slice(-20000) || (err && !err.code ? err.message : '') });
@@ -208,7 +208,7 @@ function readBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
     req.on('data', (d) => { raw += d; if (raw.length > 1e6) req.destroy(); });
-    req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}); } catch { reject(httpError(400, 'JSON inválido')); } });
+    req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}); } catch { reject(httpError(400, 'Invalid JSON')); } });
     req.on('error', reject);
   });
 }
@@ -217,8 +217,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 7700);
   const app = createApp();
   app.server.listen(port, app.host, () => {
-    const shown = app.host === '0.0.0.0' ? 'IP-DEL-MOVIL' : app.host;
-    console.log(`\n  Bolsillo listo → http://${shown}:${port}/${app.token ? `?token=${app.token}` : ''}\n`);
+    const shown = app.host === '0.0.0.0' ? 'PHONE-IP' : app.host;
+    console.log(`\n  Bolsillo ready → http://${shown}:${port}/${app.token ? `?token=${app.token}` : ''}\n`);
   });
   const shutdown = () => { app.close(); process.exit(0); };
   process.on('SIGINT', shutdown);

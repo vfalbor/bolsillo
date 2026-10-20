@@ -1,6 +1,6 @@
-// Saca de una traza de QEMU nativo (-trace virtio_blk_handle_read) el orden en que el Linux lee los
-// bloques de 4 MB de su disco al arrancar y abrir Claude, y lo deja en hot.json junto a pack.json: la
-// página los va trayendo por adelantado (web/lazy-load.js).
+// Extracts from a native QEMU trace (-trace virtio_blk_handle_read) the order in which Linux reads the
+// 4 MB blocks of its disk while booting and opening Claude, and writes it to hot.json next to pack.json:
+// the page prefetches them (web/lazy-load.js).
 //
 //   node safari/make-hot.mjs <trace.log> [build/base/htdocs]
 import fs from 'node:fs';
@@ -17,4 +17,4 @@ for (const m of fs.readFileSync(process.argv[2], 'utf8').matchAll(/sector (\d+) 
   for (let b = Math.floor(from / BLOCK); b * BLOCK < to; b++) if (!order.includes(b)) order.push(b);
 }
 fs.writeFileSync(path.join(dir, 'hot.json'), JSON.stringify({ data: pack.data, block: BLOCK, order }));
-console.log(`hot.json: ${order.length} bloques (${order.length * 4} MB) en orden de lectura para ${pack.data}`);
+console.log(`hot.json: ${order.length} blocks (${order.length * 4} MB) in read order for ${pack.data}`);

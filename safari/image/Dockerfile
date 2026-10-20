@@ -1,5 +1,5 @@
-# Linux aarch64 para container2wasm: Node 24 (Alpine) + bash, curl, git, ripgrep + Claude Code (JS sobre Node; el binario oficial como claude-bun) + Bolsillo.
-# Sin RUN: el host es x86_64 y no ejecuta binarios arm64; todo se copia ya preparado.
+# aarch64 Linux for container2wasm: Node 24 (Alpine) + bash, curl, git, ripgrep + Claude Code (JS on Node; the official binary as claude-bun) + Bolsillo.
+# No RUN: the host is x86_64 and does not run arm64 binaries; everything is copied in ready-made.
 FROM --platform=linux/arm64 node:24-alpine
 COPY overlay/ /
 COPY claude /usr/local/bin/claude-bun

@@ -11,7 +11,7 @@ test/emulator-results/
 __pycache__/
 *.pyc
 WhatsApp Image *.jpeg
-# Safari: lo que se compila, se descarga o se recoge al probar (ver safari/image/preparar.sh)
+# Safari: what gets built, downloaded or collected while testing (see safari/image/prepare.sh)
 safari/build/
 safari/results/
 safari/*.log

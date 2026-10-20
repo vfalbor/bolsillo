@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -30,21 +30,21 @@
 <body>
   <svg class="logo" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="24" fill="#d9622b"/><path d="M28 34h44v30a14 14 0 0 1-14 14H42a14 14 0 0 1-14-14z" fill="#fffdf9"/><path d="M28 34q22 14 44 0" fill="none" stroke="#d9622b" stroke-width="5"/><path d="M44 52l-6 6 6 6M56 52l6 6-6 6" fill="none" stroke="#26211c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h1>Bolsillo</h1>
-  <div id="msg">Arrancando…</div>
+  <div id="msg">Starting…</div>
   <div class="bar indeterminate" id="bar"><div class="fill" id="fill"></div></div>
-  <p class="first" id="first" hidden>La primera vez preparamos un Linux dentro de tu móvil con Node.js y Claude Code. Necesita conexión y unos minutos; después arranca en segundos.</p>
-  <button id="retry" hidden>Reintentar</button>
-  <details><summary>Ver detalles</summary><pre id="log"></pre></details>
+  <p class="first" id="first" hidden>The first time we set up a Linux inside your phone with Node.js and Claude Code. It needs a connection and a few minutes; after that it starts in seconds.</p>
+  <button id="retry" hidden>Retry</button>
+  <details><summary>Show details</summary><pre id="log"></pre></details>
   <script>
     const target = location.hash.slice(1) || '/';
     const $ = (id) => document.getElementById(id);
     function tick() {
-      if (!window.BolsilloApp) { $('msg').textContent = 'Abre esta pantalla desde la app Bolsillo.'; return; }
+      if (!window.BolsilloApp) { $('msg').textContent = 'Open this screen from the Bolsillo app.'; return; }
       let s;
       try { s = JSON.parse(BolsilloApp.status()); } catch { s = {}; }
       if (s.stage === 'ready') { location.replace(s.url.replace(/\/$/, '') + target); return; }
       document.body.classList.toggle('error', s.stage === 'error');
-      $('msg').textContent = s.stage === 'error' ? `${s.message}: ${s.error}` : (s.message || 'Arrancando…');
+      $('msg').textContent = s.stage === 'error' ? `${s.message}: ${s.error}` : (s.message || 'Starting…');
       $('first').hidden = !['download', 'extract', 'packages'].includes(s.stage);
       $('retry').hidden = s.stage !== 'error';
       $('bar').hidden = s.stage === 'error';

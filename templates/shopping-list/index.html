@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lista de la compra</title>
+  <title>Shopping list</title>
   <style>
     :root { --bg: #f3f7f1; --card: #fff; --ink: #1f2a1d; --soft: #6b7867; --accent: #2f8f4e; --line: #dde6d9; }
     @media (prefers-color-scheme: dark) { :root { --bg: #141a13; --card: #1d251b; --ink: #e8efe5; --soft: #9aa895; --line: #2c3729; --accent: #4fb36f; } }
@@ -26,13 +26,13 @@
   </style>
 </head>
 <body>
-  <h1>🛒 Lista de la compra</h1>
-  <form id="add"><input id="item" placeholder="Leche, pan, tomates…" autocomplete="off" aria-label="Producto"><button>Añadir</button></form>
+  <h1>🛒 Shopping list</h1>
+  <form id="add"><input id="item" placeholder="Milk, bread, tomatoes…" autocomplete="off" aria-label="Item"><button>Add</button></form>
   <ul id="list"></ul>
-  <h2>Lo de siempre</h2>
+  <h2>The usual</h2>
   <div class="chips" id="usual"></div>
   <script>
-    const KEY = 'lista-compra';
+    const KEY = 'lista-compra'; // storage key kept from the first version so saved lists survive
     const state = JSON.parse(localStorage.getItem(KEY) || '{"items":[],"usual":{}}');
     const save = () => localStorage.setItem(KEY, JSON.stringify(state));
     const $ = (id) => document.getElementById(id);
@@ -51,12 +51,12 @@
         li.className = it.done ? 'done' : '';
         const box = Object.assign(document.createElement('input'), { type: 'checkbox', checked: it.done });
         box.onchange = () => { it.done = box.checked; save(); render(); };
-        const del = Object.assign(document.createElement('button'), { className: 'x', textContent: '✕', ariaLabel: 'Quitar' });
+        const del = Object.assign(document.createElement('button'), { className: 'x', textContent: '✕', ariaLabel: 'Remove' });
         del.onclick = () => { state.items.splice(n, 1); save(); render(); };
         li.append(box, Object.assign(document.createElement('span'), { textContent: it.name }), del);
         return li;
       }));
-      if (!state.items.length) $('list').append(Object.assign(document.createElement('li'), { className: 'empty', textContent: 'La lista está vacía 🎉' }));
+      if (!state.items.length) $('list').append(Object.assign(document.createElement('li'), { className: 'empty', textContent: 'The list is empty 🎉' }));
       const usual = Object.entries(state.usual).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name]) => name);
       $('usual').replaceChildren(...usual.map((name) => Object.assign(document.createElement('button'), { textContent: `+ ${name}`, onclick: () => add(name) })));
     }

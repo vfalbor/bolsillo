@@ -1,7 +1,7 @@
 {
   "name": "Bolsillo",
   "short_name": "Bolsillo",
-  "description": "Tu taller de apps en el móvil",
+  "description": "Your app workshop on your phone",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f4efe6",

@@ -8,15 +8,15 @@ test('init message yields the session id', () => {
 
 test('assistant blocks become text and friendly tool labels', () => {
   const evs = toEvents({ type: 'assistant', message: { content: [
-    { type: 'text', text: 'Hola' },
+    { type: 'text', text: 'Hello' },
     { type: 'tool_use', name: 'Edit', input: { file_path: '/a/b/c/app.js' } },
     { type: 'tool_use', name: 'Rare', input: {} },
     { type: 'text', text: '   ' },
   ] } });
   assert.deepEqual(evs, [
-    { type: 'text', text: 'Hola' },
-    { type: 'tool', name: 'Edit', label: 'Modificando c/app.js' },
-    { type: 'tool', name: 'Rare', label: 'Usando Rare' },
+    { type: 'text', text: 'Hello' },
+    { type: 'tool', name: 'Edit', label: 'Editing c/app.js' },
+    { type: 'tool', name: 'Rare', label: 'Using Rare' },
   ]);
 });
 

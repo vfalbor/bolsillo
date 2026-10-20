@@ -1,10 +1,10 @@
-// Puerta de Bolsillo en Safari: un único origen para
-//   /vm/…        la página con el Linux aarch64 (QEMU en WebAssembly)
-//   /net         el relé de red: WebSocket → c2w-net (pila TCP/IP en el host; el TLS va de extremo a extremo)
-//   /p/<puerto>/ las apps que corren dentro del Linux
-//   /…           el panel de Bolsillo que corre dentro del Linux
-// Todas las respuestas llevan COOP/COEP (Safari solo da SharedArrayBuffer así) y exigen el token.
-// Sin dependencias.
+// Bolsillo gateway for Safari: a single origin for
+//   /vm/…        the page with the aarch64 Linux (QEMU in WebAssembly)
+//   /net         the network relay: WebSocket → c2w-net (TCP/IP stack on the host; TLS stays end to end)
+//   /p/<port>/   the apps running inside Linux
+//   /…           the Bolsillo panel running inside Linux
+// Every response carries COOP/COEP (it's the only way Safari gives SharedArrayBuffer) and requires the token.
+// No dependencies.
 import http from 'node:http';
 import net from 'node:net';
 import fs from 'node:fs';
@@ -18,7 +18,7 @@ const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '127.0.0.1';
 const TOKEN = process.env.GATEWAY_TOKEN || crypto.randomBytes(12).toString('hex');
 const RELAY = { host: '127.0.0.1', port: Number(process.env.RELAY_PORT || 8888) };
-// c2w-net publica cada puerto del Linux en el host como PORT_OFFSET + puerto (7700 → 17700).
+// c2w-net publishes each Linux port on the host as PORT_OFFSET + port (7700 → 17700).
 const PORT_OFFSET = Number(process.env.PORT_OFFSET || 10000);
 const hostPortFor = (guestPort) => PORT_OFFSET + guestPort;
 const PANEL_PORT = 7700;
@@ -56,21 +56,21 @@ function serveStatic(req, res, rel) {
     if (!fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
     const headers = isolation({ 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache', 'accept-ranges': 'bytes' });
     const size = fs.statSync(file).size;
-    // Por partes: el disco del Linux se pide a trozos (web/lazy-load.js).
+    // Ranges: the Linux disk is requested in chunks (web/lazy-load.js).
     const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
     if (range) {
       const start = Number(range[1]), end = Math.min(size - 1, range[2] ? Number(range[2]) : size - 1);
       if (start > end) { res.writeHead(416, isolation({ 'content-range': `bytes */${size}` })).end(); return; }
-      // Los trozos no cambian mientras no cambie el fichero: que el navegador los guarde.
+      // Chunks don't change unless the file does: let the browser keep them.
       headers['cache-control'] = 'private, max-age=86400';
       headers['content-range'] = `bytes ${start}-${end}/${size}`;
       headers['content-length'] = end - start + 1;
       res.writeHead(206, headers);
       return fs.createReadStream(file, { start, end }).pipe(res);
     }
-    // Ficheros grandes precomprimidos (out.wasm.gz, out.data.gz…): menos descarga y menos memoria de red.
+    // Big precompressed files (out.wasm.gz, out.data.gz…): less to download and less network memory.
     const gz = `${file}.gz`;
-    // (solo si es al menos tan nuevo como el original: un .gz viejo junto a un fichero nuevo rompería la página)
+    // (only if it's at least as new as the original: an old .gz next to a new file would break the page)
     if (/\bgzip\b/.test(req.headers['accept-encoding'] || '') && fs.existsSync(gz) && fs.statSync(gz).mtimeMs >= fs.statSync(file).mtimeMs) {
       headers['content-encoding'] = 'gzip';
       headers['content-length'] = fs.statSync(gz).size;
@@ -81,18 +81,18 @@ function serveStatic(req, res, rel) {
     res.writeHead(200, headers);
     return fs.createReadStream(file).pipe(res);
   }
-  res.writeHead(404, isolation({ 'content-type': 'text/plain; charset=utf-8' })).end('No encontrado');
+  res.writeHead(404, isolation({ 'content-type': 'text/plain; charset=utf-8' })).end('Not found');
 }
 
-// Trozos del disco comprimidos: GET /vm/z/<fichero .data>?s=<inicio>&e=<fin> → [s, e) en brotli (o gzip).
-// El disco baja a ~1/3 y, como el nombre del fichero lleva versión, el navegador puede guardarlo para
-// siempre (la segunda visita casi no descarga). Lo comprimido se guarda en build/zcache.
+// Compressed disk chunks: GET /vm/z/<.data file>?s=<start>&e=<end> → [s, e) in brotli (or gzip).
+// The disk shrinks to ~1/3 and, since the file name carries a version, the browser can keep it forever
+// (the second visit downloads almost nothing). Compressed chunks are kept in build/zcache.
 const ZCACHE = process.env.ZCACHE || path.join(here, 'build', 'zcache');
 async function serveZ(req, res, name, url) {
   const s = Number(url.searchParams.get('s')), e = Number(url.searchParams.get('e'));
   const file = STATIC_DIRS.map((d) => path.join(d, name)).find((f) => /^[\w.-]+\.data$/.test(name) && fs.existsSync(f));
   if (!file || !(Number.isInteger(s) && Number.isInteger(e) && s >= 0 && e > s && e - s <= 128 << 20 && e <= fs.statSync(file).size)) {
-    res.writeHead(400, isolation({ 'content-type': 'text/plain; charset=utf-8' })).end('Trozo no válido'); return;
+    res.writeHead(400, isolation({ 'content-type': 'text/plain; charset=utf-8' })).end('Invalid chunk'); return;
   }
   const accept = req.headers['accept-encoding'] || '';
   const enc = /\bbr\b/.test(accept) ? 'br' : /\bgzip\b/.test(accept) ? 'gzip' : null;
@@ -125,7 +125,7 @@ function proxy(req, res, port, pathAndQuery) {
   delete headers.cookie;
   const up = http.request({ host: '127.0.0.1', port: hostPortFor(port), method: req.method, path: pathAndQuery, headers }, (r) => {
     const h = isolation({ ...r.headers });
-    // Redirecciones del Linux a http://<host>:<puerto>/ → la misma ruta bajo /p/<puerto>/.
+    // Linux redirects to http://<host>:<port>/ → the same path under /p/<port>/.
     if (h.location) h.location = h.location.replace(/^https?:\/\/[^/]+:(\d+)\//, (_, p) => `/p/${p}/`);
     delete h['set-cookie'];
     res.writeHead(r.statusCode, h);
@@ -134,15 +134,15 @@ function proxy(req, res, port, pathAndQuery) {
   up.setTimeout(0);
   up.on('error', () => {
     if (res.headersSent) return res.destroy();
-    res.writeHead(502, isolation({ 'content-type': 'text/plain; charset=utf-8' })).end('El Linux aún no responde en ese puerto');
+    res.writeHead(502, isolation({ 'content-type': 'text/plain; charset=utf-8' })).end("Linux isn't answering on that port yet");
   });
   req.pipe(up);
 }
 
-// Lo que la página pregunta al Linux para vigilarlo (salud, depuración) le cuesta CPU, y en el emulador
-// mucha: se responde de una caché de 15 s, con una sola pregunta en vuelo por ruta.
+// What the page asks Linux to monitor it (health, debug) costs it CPU, a lot in the emulator: answered
+// from a 15 s cache, with a single question in flight per route.
 const MONITORED = new Set(['/api/health', '/api/debug']);
-const monitorCache = new Map(); // ruta → { at, status, body, waiting: [res] | null }
+const monitorCache = new Map(); // route → { at, status, body, waiting: [res] | null }
 function cachedProxy(req, res, route) {
   const c = monitorCache.get(route);
   const send = (r, e) => r.writeHead(e.status, isolation({ 'content-type': 'application/json', 'cache-control': 'no-store', 'x-bolsillo-cache': e.hit ? 'hit' : 'miss' })).end(e.body);
@@ -162,14 +162,14 @@ function cachedProxy(req, res, route) {
     r.on('end', () => done(r.statusCode, body));
   });
   up.setTimeout(120000, () => up.destroy());
-  up.on('error', () => done(502, JSON.stringify({ error: 'El Linux aún no responde' })));
+  up.on('error', () => done(502, JSON.stringify({ error: "Linux isn't answering yet" })));
 }
 
-// Informes de la página (hitos, disco, errores) para ver desde aquí cómo fue una prueba en el iPhone.
+// Page reports (milestones, disk, errors) to see from here how a test on the iPhone went.
 const REPORTS = process.env.REPORTS || path.join(here, 'results', 'reports.jsonl');
 function saveReport(req, res) {
   let body = '';
-  req.on('data', (d) => { body += d; if (body.length > 60000) req.destroy(); /* sendBeacon admite hasta 64 KB */ });
+  req.on('data', (d) => { body += d; if (body.length > 60000) req.destroy(); /* sendBeacon allows up to 64 KB */ });
   req.on('end', () => {
     try {
       const r = JSON.parse(body);
@@ -180,12 +180,12 @@ function saveReport(req, res) {
   });
 }
 
-// Inicio de sesión de Claude (suscripción Pro/Max) hecho por el servidor, sin esperar a que arranque el
-// Linux: es el mismo flujo que «claude setup-token» (OAuth con PKCE, cliente de Claude Code, permiso
-// user:inference, token de un año), con la redirección «manual» que enseña un código para pegar.
-//   GET  /vm/login                → { url, state }   enlace de claude.ai para autorizar
-//   POST /vm/login {state, code}  → { token }        el código que enseña claude.ai, cambiado por el token
-// El verificador PKCE se queda aquí; el token no se guarda ni se apunta en ningún sitio.
+// Claude sign-in (Pro/Max subscription) done by the server, without waiting for Linux to boot: the same
+// flow as "claude setup-token" (OAuth with PKCE, Claude Code's client, user:inference scope, one-year
+// token), with the "manual" redirect that shows a code to paste.
+//   GET  /vm/login                → { url, state }   claude.ai link to authorize
+//   POST /vm/login {state, code}  → { token }        the code claude.ai shows, exchanged for the token
+// The PKCE verifier stays here; the token is never stored or logged anywhere.
 const OAUTH = {
   authorize: 'https://claude.com/cai/oauth/authorize',
   token: 'https://platform.claude.com/v1/oauth/token',
@@ -206,16 +206,16 @@ function login(req, res) {
       u.searchParams.append(k, v);
     return json(200, { url: u.toString(), state });
   }
-  if (req.method !== 'POST') return json(405, { error: 'método' });
+  if (req.method !== 'POST') return json(405, { error: 'method' });
   let body = '';
   req.on('data', (d) => { body += d; if (body.length > 8000) req.destroy(); });
   req.on('end', async () => {
     try {
       const { state, code: pasted } = JSON.parse(body);
-      // claude.ai enseña «código#estado»: se queda el código, y el estado (si viene) manda.
+      // claude.ai shows "code#state": keep the code, and the state (if present) wins.
       const [code, st = state] = String(pasted || '').trim().split('#');
       const L = logins.get(st);
-      if (!L || !code) return json(400, { error: 'El enlace ha caducado o el código no es de este enlace: ábrelo otra vez.' });
+      if (!L || !code) return json(400, { error: "The link has expired or the code isn't from this link: open it again." });
       const r = await fetch(OAUTH.token, {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(20000),
         body: JSON.stringify({ grant_type: 'authorization_code', code, redirect_uri: OAUTH.redirect, client_id: OAUTH.client,
@@ -223,22 +223,22 @@ function login(req, res) {
       });
       const t = await r.json().catch(() => ({}));
       if (r.status !== 200 || !t.access_token) {
-        console.log(`login: claude.ai contesta ${r.status} ${t.error || ''}`);
-        return json(400, { error: r.status === 400 || r.status === 401 ? 'Ese código no vale (o ya se usó): abre el enlace otra vez y pega el código nuevo.' : `claude.ai no responde bien (${r.status}).` });
+        console.log(`login: claude.ai answers ${r.status} ${t.error || ''}`);
+        return json(400, { error: r.status === 400 || r.status === 401 ? "That code isn't valid (or was already used): open the link again and paste the new code." : `claude.ai isn't answering properly (${r.status}).` });
       }
       logins.delete(st);
-      console.log('login: token de suscripción entregado a la página');
+      console.log('login: subscription token handed to the page');
       json(200, { token: t.access_token });
-    } catch (e) { json(502, { error: `No se pudo hablar con claude.ai: ${e.message}` }); }
+    } catch (e) { json(502, { error: `Couldn't talk to claude.ai: ${e.message}` }); }
   });
 }
 
-// Copia de las apps de cada iPhone (carpeta projects del Linux, en .tar.gz): el disco del Linux se pierde al
-// recargar la página, así que el Linux la sube aquí cuando cambia y la recupera al arrancar. La clave la crea
-// la página al azar y se guarda en el iPhone; quien la tiene, tiene la copia (por eso no pide el token).
-const DATOS = process.env.DATOS || path.join(here, 'datos');
-function datos(req, res, key) {
-  const file = path.join(DATOS, `${key}.tgz`);
+// Backup of each iPhone's apps (Linux's projects folder, as .tar.gz): the Linux disk is lost when the page
+// reloads, so Linux uploads it here when it changes and restores it at boot. The page makes up the key at
+// random and keeps it on the iPhone; whoever has it has the backup (that's why it doesn't ask for the token).
+const DATA_DIR = process.env.DATA_DIR || path.join(here, 'data');
+function backup(req, res, key) {
+  const file = path.join(DATA_DIR, `${key}.tgz`);
   if (req.method === 'GET') {
     fs.stat(file, (err, st) => {
       if (err) { res.writeHead(404, isolation()).end(); return; }
@@ -248,7 +248,7 @@ function datos(req, res, key) {
     return;
   }
   if (req.method !== 'PUT') { res.writeHead(405, isolation()).end(); return; }
-  fs.mkdirSync(DATOS, { recursive: true });
+  fs.mkdirSync(DATA_DIR, { recursive: true });
   const tmp = `${file}.${process.pid}.${Date.now()}`;
   const out = fs.createWriteStream(tmp);
   let size = 0;
@@ -262,11 +262,11 @@ function datos(req, res, key) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
-  const dk = /^\/vm\/datos\/([A-Za-z0-9_-]{32,64})$/.exec(url.pathname);
-  if (dk) return datos(req, res, dk[1]);
+  const dk = /^\/vm\/data\/([A-Za-z0-9_-]{32,64})$/.exec(url.pathname);
+  if (dk) return backup(req, res, dk[1]);
   const auth = authorized(req, url);
   if (!auth) {
-    res.writeHead(401, isolation({ 'content-type': 'text/plain; charset=utf-8' })).end('Falta el token: abre el enlace completo que te dieron.');
+    res.writeHead(401, isolation({ 'content-type': 'text/plain; charset=utf-8' })).end('Missing token: open the full link you were given.');
     return;
   }
   if (auth === 'query') {
@@ -285,13 +285,13 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/vm/login') return login(req, res);
   if (url.pathname.startsWith('/vm/z/')) return serveZ(req, res, url.pathname.slice(6), url);
-  // Enlace de inicio de sesión de Claude: la página lo abre a través de aquí (una redirección del propio
-  // servidor) para que iOS lo abra en Safari y no en la app de Claude, que no enseña el código a pegar.
-  if (url.pathname === '/vm/ir') {
+  // Claude sign-in link: the page opens it through here (a redirect from this server) so iOS opens it in
+  // Safari and not in the Claude app, which doesn't show the code to paste.
+  if (url.pathname === '/vm/go') {
     const to = url.searchParams.get('u') || '';
     let ok = false;
     try { ok = /^(claude\.ai|claude\.com|platform\.claude\.com|console\.anthropic\.com)$/.test(new URL(to).hostname) && to.startsWith('https://'); } catch {}
-    res.writeHead(ok ? 302 : 400, isolation(ok ? { location: to, 'cache-control': 'no-store' } : { 'content-type': 'text/plain; charset=utf-8' })).end(ok ? '' : 'Enlace no permitido');
+    res.writeHead(ok ? 302 : 400, isolation(ok ? { location: to, 'cache-control': 'no-store' } : { 'content-type': 'text/plain; charset=utf-8' })).end(ok ? '' : 'Link not allowed');
     return;
   }
   if (url.pathname.startsWith('/vm/')) return serveStatic(req, res, url.pathname.slice(4));
@@ -304,10 +304,10 @@ const server = http.createServer((req, res) => {
   return proxy(req, res, PANEL_PORT, url.pathname + url.search);
 });
 
-// Relé: la página habla WebSocket con /net y nosotros lo pasamos tal cual a c2w-net.
-// c2w-net solo lleva la red de un Linux: la tiene la pestaña que abrió la red la última. Cada página
-// manda su id de sesión (?sid=); al llegar una nueva se corta la anterior, y esta ya no puede volver
-// (lo comprueba en /vm/net-owner y lo dice en pantalla en vez de pelearse por la red).
+// Relay: the page speaks WebSocket to /net and we pass it on as is to c2w-net.
+// c2w-net only carries one Linux's network: it belongs to the tab that opened it last. Each page sends
+// its session id (?sid=); when a new one arrives the previous one is cut off and can't come back (it
+// checks /vm/net-owner and says so on screen instead of fighting over the network).
 let netOwner = { sid: null, sockets: new Set() };
 const displaced = new Set();
 
@@ -320,7 +320,7 @@ server.on('upgrade', (req, socket, head) => {
     if (netOwner.sid !== null) {
       displaced.add(netOwner.sid);
       for (const s of netOwner.sockets) s.destroy();
-      console.log(`red: la sesión ${sid || '(sin id)'} sustituye a ${netOwner.sid || '(sin id)'}`);
+      console.log(`network: session ${sid || '(no id)'} replaces ${netOwner.sid || '(no id)'}`);
     }
     netOwner = { sid, sockets: new Set() };
   }
@@ -334,7 +334,7 @@ server.on('upgrade', (req, socket, head) => {
       lines.push(`${k}: ${req.rawHeaders[i + 1]}`);
     }
     lines.push(`Host: ${RELAY.host}:${RELAY.port}`);
-    // c2w-net rechaza (403) un WebSocket sin Origin; el token ya lo ha comprobado la puerta.
+    // c2w-net rejects (403) a WebSocket without Origin; the gateway has already checked the token.
     lines.push(`Origin: http://${RELAY.host}:${RELAY.port}`);
     up.write(lines.join('\r\n') + '\r\n\r\n');
     if (head?.length) up.write(head);
@@ -346,5 +346,5 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`\n  Bolsillo en Safari → http://${HOST}:${PORT}/vm/?t=${TOKEN}\n`);
+  console.log(`\n  Bolsillo for Safari → http://${HOST}:${PORT}/vm/?t=${TOKEN}\n`);
 });

@@ -44,7 +44,7 @@ final class Linux {
         String abi = Build.SUPPORTED_ABIS[0];
         if (abi.startsWith("arm64")) return "arm64";
         if (abi.equals("x86_64")) return "amd64";
-        throw new IllegalStateException("Este móvil (" + abi + ") no es compatible: hace falta un procesador de 64 bits");
+        throw new IllegalStateException("This phone (" + abi + ") isn't supported: a 64-bit processor is required");
     }
 
     static String rootfsFile() {
@@ -70,7 +70,7 @@ final class Linux {
         File talloc = new File(libLinks, "libtalloc.so.2");
         talloc.delete();
         try { Os.symlink(nativeDir + "/libtalloc.so", talloc.getPath()); }
-        catch (Exception e) { throw new IOException("No se pudo preparar proot: " + e.getMessage()); }
+        catch (Exception e) { throw new IOException("Couldn't prepare proot: " + e.getMessage()); }
         // Android hides some /proc files from apps; give programs harmless stand-ins.
         write(new File(fakeProc, "loadavg"), "0.12 0.07 0.02 2/165 765\n");
         write(new File(fakeProc, "stat"), "cpu  1957 0 2877 93280 262 342 254 87 0 0\ncpu0 31 0 226 12027 82 10 4 9 0 0\n"
@@ -130,8 +130,8 @@ final class Linux {
 
     /** Ubuntu 24.04 needs system calls that Linux 3.x lacks and proot can't emulate (apt fails in realpath). */
     static void checkKernel() {
-        if (kernelBelow(4, 4)) throw new IllegalStateException("Este móvil es demasiado antiguo para Bolsillo: su sistema (Linux "
-                + System.getProperty("os.version") + ") no basta, hace falta Linux 4.4 o más nuevo (casi todos los móviles desde 2018)");
+        if (kernelBelow(4, 4)) throw new IllegalStateException("This phone is too old for Bolsillo: its system (Linux "
+                + System.getProperty("os.version") + ") isn't enough, Linux 4.4 or newer is required (almost every phone since 2018)");
     }
 
     private static boolean kernelBelow(int wantMajor, int wantMinor) {

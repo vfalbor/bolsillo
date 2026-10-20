@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Bolsillo</title>
-  <meta name="description" content="Tu taller de apps en el móvil">
+  <meta name="description" content="Your app workshop on your phone">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#f4efe6" media="(prefers-color-scheme: light)">
@@ -14,99 +14,99 @@
 <body>
   <!-- ============ Tabs ============ -->
   <main id="tabs">
-    <!-- Mis apps -->
+    <!-- My apps -->
     <section id="v-apps" class="view">
       <header class="top">
-        <h1>Mis apps</h1>
-        <p class="sub" id="status">Tu taller de apps en el móvil</p>
+        <h1>My apps</h1>
+        <p class="sub" id="status">Your app workshop on your phone</p>
       </header>
       <button id="connectBanner" class="banner" hidden>
         <span class="banner-ico">🔑</span>
-        <span><b>Conecta tu cuenta de Claude</b><br>Es quien construye tus apps. Tarda un minuto.</span>
+        <span><b>Connect your Claude account</b><br>Claude builds your apps. It takes a minute.</span>
         <span class="chev">›</span>
       </button>
       <div id="grid" class="grid"></div>
       <div id="noApps" class="empty" hidden>
         <div class="big">📱</div>
-        Aún no tienes apps.<br>Coge una del catálogo o crea la tuya.
-        <div class="row center"><a class="pill primary" href="#store">Descubrir apps</a><a class="pill" href="#create">Crear una</a></div>
+        You don't have any apps yet.<br>Grab one from the catalog or make your own.
+        <div class="row center"><a class="pill primary" href="#store">Discover apps</a><a class="pill" href="#create">Make one</a></div>
       </div>
     </section>
 
-    <!-- Descubrir -->
+    <!-- Discover -->
     <section id="v-store" class="view" hidden>
       <header class="top">
-        <h1>Descubrir</h1>
-        <p class="sub">Apps listas para usar o para remezclar a tu gusto</p>
+        <h1>Discover</h1>
+        <p class="sub">Apps ready to use or to remix your way</p>
       </header>
       <div id="featured"></div>
-      <h2>Todas</h2>
+      <h2>All</h2>
       <div id="catalog" class="list"></div>
     </section>
 
-    <!-- Crear -->
+    <!-- Create -->
     <section id="v-create" class="view" hidden>
       <header class="top">
-        <h1>Crear</h1>
-        <p class="sub">Cuéntale a Claude qué app quieres y la hace en tu móvil</p>
+        <h1>Create</h1>
+        <p class="sub">Tell Claude what app you want and it builds it on your phone</p>
       </header>
       <form id="createForm" class="panel">
-        <label>¿Qué app quieres?
-          <textarea name="idea" rows="5" required placeholder="Una app para apuntar los partidos de pádel con mis amigos y ver quién va ganando la liga"></textarea>
+        <label>What app do you want?
+          <textarea name="idea" rows="5" required placeholder="An app to log padel matches with my friends and see who's leading the league"></textarea>
         </label>
         <div class="chips" id="ideaChips"></div>
-        <label>Nombre
-          <input name="name" required placeholder="Liga de pádel" autocomplete="off">
+        <label>Name
+          <input name="name" required placeholder="Padel league" autocomplete="off">
         </label>
-        <button class="pill primary wide">✨ Crear con Claude</button>
+        <button class="pill primary wide">✨ Create with Claude</button>
       </form>
     </section>
 
-    <!-- Ajustes -->
+    <!-- Settings -->
     <section id="v-settings" class="view" hidden>
       <header class="top">
-        <h1>Ajustes</h1>
+        <h1>Settings</h1>
       </header>
 
-      <h2>Cuenta de Claude</h2>
+      <h2>Claude account</h2>
       <div class="panel" id="account">
-        <div class="acc-row"><span class="acc-ico" id="accIco">⏳</span><div><b id="accTitle">Comprobando…</b><div class="sub" id="accSub"></div></div></div>
+        <div class="acc-row"><span class="acc-ico" id="accIco">⏳</span><div><b id="accTitle">Checking…</b><div class="sub" id="accSub"></div></div></div>
         <div id="loginBox" hidden>
-          <button id="loginStart" class="pill primary wide">Iniciar sesión con Claude</button>
+          <button id="loginStart" class="pill primary wide">Sign in with Claude</button>
           <ol id="loginSteps" class="steps-list" hidden>
-            <li><a id="loginLink" class="pill primary" target="_blank" rel="noopener">1 · Abrir Claude y autorizar</a>
-              <div class="sub">Se abre el navegador. Inicia sesión, pulsa <i>Autorizar</i> y copia el código.</div></li>
+            <li><a id="loginLink" class="pill primary" target="_blank" rel="noopener">1 · Open Claude and authorize</a>
+              <div class="sub">Your browser opens. Sign in, tap <i>Authorize</i> and copy the code.</div></li>
             <li><form id="codeForm" class="inline">
-                <input name="code" placeholder="2 · Pega aquí el código" autocomplete="off" required>
-                <button class="pill primary">Listo</button>
+                <input name="code" placeholder="2 · Paste the code here" autocomplete="off" required>
+                <button class="pill primary">Done</button>
               </form></li>
           </ol>
           <p id="loginMsg" class="sub"></p>
           <details class="more">
-            <summary>Tengo una clave (sk-ant-…)</summary>
+            <summary>I have a key (sk-ant-…)</summary>
             <form id="keyForm" class="inline">
               <input name="key" placeholder="sk-ant-…" autocomplete="off" required>
-              <button class="pill">Guardar</button>
+              <button class="pill">Save</button>
             </form>
-            <p class="sub">Vale una clave de API de console.anthropic.com o un token de <code>claude setup-token</code>.</p>
+            <p class="sub">An API key from console.anthropic.com or a token from <code>claude setup-token</code> works.</p>
           </details>
         </div>
-        <button id="forgetKey" class="pill" hidden>Olvidar la clave guardada</button>
+        <button id="forgetKey" class="pill" hidden>Forget the saved key</button>
       </div>
 
-      <h2>Tu móvil</h2>
+      <h2>Your phone</h2>
       <div class="panel">
-        <p class="sub" id="phoneSub">Lo que tus apps pueden usar del teléfono:</p>
+        <p class="sub" id="phoneSub">What your apps can use on your phone:</p>
         <ul id="caps" class="caps"></ul>
-        <button id="testVoice" class="pill">🔊 Probar la voz</button>
+        <button id="testVoice" class="pill">🔊 Test the voice</button>
       </div>
 
       <h2>Linux</h2>
       <details class="panel more">
-        <summary>Consola (para curiosos)</summary>
+        <summary>Console (for the curious)</summary>
         <form id="shellForm" class="inline mono">
           <input name="cmd" placeholder="uname -a" autocomplete="off" autocapitalize="off" spellcheck="false" required>
-          <button class="pill">Ejecutar</button>
+          <button class="pill">Run</button>
         </form>
         <pre id="shellOut" class="out"></pre>
       </details>
@@ -115,15 +115,15 @@
   </main>
 
   <nav id="tabbar">
-    <a href="#apps" data-tab="apps"><span>▦</span>Mis apps</a>
-    <a href="#store" data-tab="store"><span>🧭</span>Descubrir</a>
-    <a href="#create" data-tab="create"><span>✨</span>Crear</a>
-    <a href="#settings" data-tab="settings"><span>⚙</span>Ajustes</a>
+    <a href="#apps" data-tab="apps"><span>▦</span>My apps</a>
+    <a href="#store" data-tab="store"><span>🧭</span>Discover</a>
+    <a href="#create" data-tab="create"><span>✨</span>Create</a>
+    <a href="#settings" data-tab="settings"><span>⚙</span>Settings</a>
   </nav>
 
   <!-- ============ App detail ============ -->
   <section id="detail" class="page" hidden>
-    <header class="bar"><button class="icon back" aria-label="Volver">‹</button><div class="title"></div></header>
+    <header class="bar"><button class="icon back" aria-label="Back">‹</button><div class="title"></div></header>
     <div class="detail-body">
       <div class="hero">
         <div class="tile xl" id="dIcon"></div>
@@ -133,47 +133,47 @@
         </div>
       </div>
       <div class="actions">
-        <button id="dOpen" class="pill primary">▶ Abrir</button>
-        <button id="dChange" class="pill">✨ Cambiar con Claude</button>
-        <button id="dShortcut" class="pill" hidden>📲 Poner en el inicio</button>
+        <button id="dOpen" class="pill primary">▶ Open</button>
+        <button id="dChange" class="pill">✨ Change with Claude</button>
+        <button id="dShortcut" class="pill" hidden>📲 Add to home screen</button>
       </div>
       <p id="dDesc" class="desc"></p>
 
-      <h2>Versiones</h2>
+      <h2>Versions</h2>
       <ol id="dHistory" class="history"></ol>
-      <button id="dUndo" class="pill">↶ Deshacer el último cambio</button>
+      <button id="dUndo" class="pill">↶ Undo the last change</button>
 
       <details class="more">
-        <summary>Detalles técnicos</summary>
+        <summary>Technical details</summary>
         <p class="sub" id="dRun"></p>
         <pre id="dLogs" class="out"></pre>
-        <button id="dStop" class="pill">■ Parar la app</button>
+        <button id="dStop" class="pill">■ Stop the app</button>
       </details>
-      <button id="dDelete" class="danger">Borrar esta app</button>
+      <button id="dDelete" class="danger">Delete this app</button>
     </div>
   </section>
 
   <!-- ============ Workshop: talk to Claude ============ -->
   <section id="workshop" class="page" hidden>
     <header class="bar">
-      <button class="icon back" aria-label="Volver">‹</button>
+      <button class="icon back" aria-label="Back">‹</button>
       <div class="title"><span id="wIcon"></span> <span id="wName"></span></div>
-      <button class="pill small" id="wTry">▶ Probar</button>
+      <button class="pill small" id="wTry">▶ Try it</button>
     </header>
     <div id="messages"></div>
     <form id="composer">
-      <textarea id="input" rows="1" placeholder="Dile a Claude qué quieres…" enterkeyhint="send"></textarea>
-      <button id="send" aria-label="Enviar">➤</button>
+      <textarea id="input" rows="1" placeholder="Tell Claude what you want…" enterkeyhint="send"></textarea>
+      <button id="send" aria-label="Send">➤</button>
     </form>
   </section>
 
   <!-- ============ Player: the app full screen ============ -->
   <section id="player" class="page" hidden>
     <header class="bar slim">
-      <button class="icon back" aria-label="Cerrar">‹</button>
+      <button class="icon back" aria-label="Close">‹</button>
       <div class="title" id="plName"></div>
-      <button class="icon" id="plReload" aria-label="Recargar">⟳</button>
-      <button class="icon" id="plChange" aria-label="Cambiar con Claude">✨</button>
+      <button class="icon" id="plReload" aria-label="Reload">⟳</button>
+      <button class="icon" id="plChange" aria-label="Change with Claude">✨</button>
     </header>
     <iframe id="frame" title="App" allow="camera; microphone; geolocation; autoplay; clipboard-read; clipboard-write"></iframe>
   </section>
@@ -183,12 +183,12 @@
     <form method="dialog" id="tplForm">
       <div class="hero"><div class="tile lg" id="tIcon"></div><div><h2 id="tName"></h2><p class="sub" id="tCat"></p></div></div>
       <p id="tDesc" class="desc"></p>
-      <label>¿Quieres cambiar algo? <span class="opt">(opcional)</span>
-        <textarea name="idea" rows="3" placeholder="Igual, pero con cuentos de dinosaurios y una canción al terminar"></textarea>
+      <label>Want to change anything? <span class="opt">(optional)</span>
+        <textarea name="idea" rows="3" placeholder="The same, but with dinosaur stories and a song at the end"></textarea>
       </label>
       <div class="row">
-        <button value="cancel" formnovalidate class="pill">Cerrar</button>
-        <button value="ok" class="pill primary" id="tGo">Obtener</button>
+        <button value="cancel" formnovalidate class="pill">Close</button>
+        <button value="ok" class="pill primary" id="tGo">Get</button>
       </div>
     </form>
   </dialog>

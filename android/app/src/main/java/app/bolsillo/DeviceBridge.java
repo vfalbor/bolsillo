@@ -73,7 +73,7 @@ final class DeviceBridge {
                     new Thread(() -> handle(s), "bolsillo-bridge-req").start();
                 }
             } catch (IOException e) {
-                LinuxService.log("[puente del móvil: " + e.getMessage() + "]");
+                LinuxService.log("[phone bridge: " + e.getMessage() + "]");
             }
         }, "bolsillo-bridge").start();
         main.post(() -> tts = new TextToSpeech(ctx, status -> {
@@ -107,7 +107,7 @@ final class DeviceBridge {
                 if (k.equals("content-length")) length = Integer.parseInt(v);
                 if (k.equals("authorization")) auth = v;
             }
-            // Content-Length counts bytes, not characters ("móvil" is 6 bytes).
+            // Content-Length counts bytes, not characters (an "é" is 2 bytes).
             byte[] body = new byte[Math.min(length, 1 << 20)];
             int read = 0;
             while (read < body.length) {
@@ -119,7 +119,7 @@ final class DeviceBridge {
             JSONObject result;
             if (!("Bearer " + token).equals(auth)) {
                 status = 401;
-                result = error("Sin permiso");
+                result = error("Not allowed");
             } else {
                 try {
                     String name = parts.length > 1 ? parts[1].replaceFirst("^/", "") : "";
@@ -140,7 +140,7 @@ final class DeviceBridge {
             os.write(out);
             os.flush();
         } catch (Exception e) {
-            LinuxService.log("[puente del móvil: " + e + "]");
+            LinuxService.log("[phone bridge: " + e + "]");
         }
     }
 
@@ -178,7 +178,7 @@ final class DeviceBridge {
             case "location": return location();
             case "shortcut": return shortcut(a.optString("id"), a.optString("name"), a.optString("emoji", "📱"));
             case "open": return open(a.optString("url"));
-            default: throw new BridgeError(404, "Este móvil no sabe hacer «" + name + "»");
+            default: throw new BridgeError(404, "This phone doesn't know how to do \"" + name + "\"");
         }
     }
 
@@ -196,7 +196,7 @@ final class DeviceBridge {
     }
 
     private JSONObject speak(String text) throws Exception {
-        if (!ttsReady) throw new BridgeError(503, "La voz del móvil aún no está lista");
+        if (!ttsReady) throw new BridgeError(503, "The phone's voice isn't ready yet");
         tts.speak(text, TextToSpeech.QUEUE_ADD, null, "bolsillo-" + System.nanoTime());
         return ok();
     }
@@ -220,14 +220,14 @@ final class DeviceBridge {
 
     private JSONObject torch(boolean on) throws Exception {
         String id = flashCamera();
-        if (id == null) throw new BridgeError(501, "Este móvil no tiene linterna");
+        if (id == null) throw new BridgeError(501, "This phone has no flashlight");
         ctx.getSystemService(CameraManager.class).setTorchMode(id, on);
         return ok();
     }
 
     private JSONObject notify(String title, String text) throws Exception {
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
-        nm.createNotificationChannel(new NotificationChannel("apps", "Avisos de tus apps", NotificationManager.IMPORTANCE_DEFAULT));
+        nm.createNotificationChannel(new NotificationChannel("apps", "Notifications from your apps", NotificationManager.IMPORTANCE_DEFAULT));
         Notification n = new Notification.Builder(ctx, "apps")
                 .setSmallIcon(R.drawable.ic_stat)
                 .setContentTitle(title)
@@ -261,22 +261,22 @@ final class DeviceBridge {
     }
 
     private JSONObject location() throws Exception {
-        if (!granted(Manifest.permission.ACCESS_COARSE_LOCATION)) throw new BridgeError(403, "Da permiso de ubicación a Bolsillo en los ajustes del móvil");
+        if (!granted(Manifest.permission.ACCESS_COARSE_LOCATION)) throw new BridgeError(403, "Give Bolsillo location permission in the phone's settings");
         LocationManager lm = ctx.getSystemService(LocationManager.class);
         Location best = null;
         for (String p : lm.getProviders(true)) {
             @SuppressWarnings("MissingPermission") Location l = lm.getLastKnownLocation(p);
             if (l != null && (best == null || l.getTime() > best.getTime())) best = l;
         }
-        if (best == null) throw new BridgeError(503, "El móvil aún no sabe dónde está; abre un mapa un momento");
+        if (best == null) throw new BridgeError(503, "The phone doesn't know where it is yet; open a map for a moment");
         return new JSONObject().put("latitude", best.getLatitude()).put("longitude", best.getLongitude())
                 .put("accuracy", best.getAccuracy()).put("time", best.getTime());
     }
 
     private JSONObject shortcut(String id, String name, String emoji) throws Exception {
-        if (!id.matches("[a-z0-9-]+")) throw new BridgeError(400, "id de app inválido");
+        if (!id.matches("[a-z0-9-]+")) throw new BridgeError(400, "invalid app id");
         ShortcutManager sm = ctx.getSystemService(ShortcutManager.class);
-        if (!sm.isRequestPinShortcutSupported()) throw new BridgeError(501, "Tu pantalla de inicio no admite accesos directos");
+        if (!sm.isRequestPinShortcutSupported()) throw new BridgeError(501, "Your home screen doesn't support shortcuts");
         Intent launch = new Intent(Intent.ACTION_VIEW, Uri.parse("bolsillo://app/" + id), ctx, AppActivity.class)
                 .putExtra("name", name);
         ShortcutInfo info = new ShortcutInfo.Builder(ctx, "app-" + id)
@@ -285,7 +285,7 @@ final class DeviceBridge {
                 .setIntent(launch)
                 .build();
         boolean asked = onMain(() -> sm.requestPinShortcut(info, null));
-        if (!asked) throw new BridgeError(500, "El móvil no dejó crear el acceso directo");
+        if (!asked) throw new BridgeError(500, "The phone didn't allow creating the shortcut");
         return ok();
     }
 
@@ -306,7 +306,7 @@ final class DeviceBridge {
     }
 
     private JSONObject open(String url) throws Exception {
-        if (!url.startsWith("https://") && !url.startsWith("http://")) throw new BridgeError(400, "Solo enlaces web");
+        if (!url.startsWith("https://") && !url.startsWith("http://")) throw new BridgeError(400, "Only web links");
         ctx.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         return ok();
     }

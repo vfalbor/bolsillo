@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Temporizador de cocina</title>
+  <title>Kitchen timer</title>
   <style>
     :root { --bg: #fff6ee; --card: #fff; --ink: #2a1d14; --soft: #8a7466; --accent: #e0662f; --line: #f0dccd; }
     @media (prefers-color-scheme: dark) { :root { --bg: #1a1310; --card: #251b16; --ink: #f6e9df; --soft: #b19a8b; --line: #3a2b23; --accent: #f08048; } }
@@ -24,25 +24,25 @@
   </style>
 </head>
 <body>
-  <h1>⏲️ Temporizador</h1>
+  <h1>⏲️ Timer</h1>
   <div class="presets" id="presets"></div>
-  <form id="new"><input id="name" placeholder="¿Qué cocinas?" autocomplete="off"><input id="mins" type="number" min="1" max="600" value="10" aria-label="Minutos"><button class="go">Empezar</button></form>
+  <form id="new"><input id="name" placeholder="What are you cooking?" autocomplete="off"><input id="mins" type="number" min="1" max="600" value="10" aria-label="Minutes"><button class="go">Start</button></form>
   <div id="timers"></div>
   <script>
-    const PRESETS = [['🍝 Pasta', 9], ['🥚 Huevo', 10], ['🍕 Horno', 15], ['🍚 Arroz', 18], ['☕ Té', 4], ['🍰 Bizcocho', 35]];
+    const PRESETS = [['🍝 Pasta', 9], ['🥚 Egg', 10], ['🍕 Oven', 15], ['🍚 Rice', 18], ['☕ Tea', 4], ['🍰 Cake', 35]];
     const timers = [];
     const $ = (id) => document.getElementById(id);
     const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
 
     function say(text) {
-      try { speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(text), { lang: 'es-ES' })); } catch {}
+      try { speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(text), { lang: 'en-US' })); } catch {}
       // Inside Bolsillo the phone can also speak and vibrate:
       fetch('http://127.0.0.1:7700/api/device/speak', { method: 'POST', body: JSON.stringify({ text }) }).catch(() => {});
       fetch('http://127.0.0.1:7700/api/device/vibrate', { method: 'POST', body: JSON.stringify({ ms: 800 }) }).catch(() => {});
     }
 
     function start(name, mins) {
-      timers.push({ name: name || 'Temporizador', end: Date.now() + mins * 60000, rang: false });
+      timers.push({ name: name || 'Timer', end: Date.now() + mins * 60000, rang: false });
       render();
     }
 
@@ -53,11 +53,11 @@
         box.className = 'timer' + (left <= 0 ? ' ring' : '');
         box.innerHTML = '<div class="left"><div class="name"></div><div class="time"></div></div>';
         box.querySelector('.name').textContent = t.name;
-        box.querySelector('.time').textContent = left > 0 ? fmt(left) : '¡Listo!';
-        const stop = Object.assign(document.createElement('button'), { textContent: left > 0 ? 'Cancelar' : 'Parar' });
+        box.querySelector('.time').textContent = left > 0 ? fmt(left) : 'Done!';
+        const stop = Object.assign(document.createElement('button'), { textContent: left > 0 ? 'Cancel' : 'Stop' });
         stop.onclick = () => { timers.splice(i, 1); render(); };
         box.append(stop);
-        if (left <= 0 && !t.rang) { t.rang = true; say(`${t.name} está listo`); }
+        if (left <= 0 && !t.rang) { t.rang = true; say(`${t.name} is ready`); }
         return box;
       }));
     }

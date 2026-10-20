@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Audiolibros</title>
+  <title>Audiobooks</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icono.svg">
+  <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#fff7ec">
   <style>
     :root { --bg: #fff7ec; --card: #ffffff; --ink: #3a2e25; --soft: #8a7a6c; --accent: #f0a868; }
@@ -37,7 +37,7 @@
   </style>
 </head>
 <body>
-  <h1>🎧 Mis cuentos</h1>
+  <h1>🎧 My stories</h1>
   <div class="grid" id="grid"></div>
   <input type="file" id="file" accept="audio/*" hidden multiple>
 
@@ -45,10 +45,10 @@
     <div class="now"><span class="e" id="nowE"></span><span id="nowT"></span></div>
     <div class="bar"><i id="prog"></i></div>
     <div class="ctrls">
-      <button id="back" aria-label="Atrás 15 segundos">⏪</button>
-      <button id="play" class="big" aria-label="Reproducir o pausar">▶</button>
-      <button id="fwd" aria-label="Adelante 15 segundos">⏩</button>
-      <button id="sleep" class="sleep" aria-label="Temporizador">🌙 Off</button>
+      <button id="back" aria-label="Back 15 seconds">⏪</button>
+      <button id="play" class="big" aria-label="Play or pause">▶</button>
+      <button id="fwd" aria-label="Forward 15 seconds">⏩</button>
+      <button id="sleep" class="sleep" aria-label="Sleep timer">🌙 Off</button>
     </div>
   </div>
   <audio id="audio"></audio>

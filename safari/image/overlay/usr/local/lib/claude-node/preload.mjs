@@ -1,6 +1,6 @@
-// Arranque de Claude Code sin token: carga cli.js ya (minutos en el emulador del navegador) y el token llega
-// después en un fichero (BOLSILLO_TOKEN_FILE, una línea), que se pasa a la variable de entorno que Claude lee
-// en cada comprobación. Así Claude puede estar cargado antes de que la persona inicie sesión.
+// Starts Claude Code without a token: loads cli.js right away (minutes in the browser's emulator) and the
+// token arrives later in a file (BOLSILLO_TOKEN_FILE, one line), which is copied into the environment
+// variable Claude reads on every check. That way Claude can be loaded before the person signs in.
 import fs from 'node:fs';
 
 const file = process.env.BOLSILLO_TOKEN_FILE || '/run/bolsillo/token';

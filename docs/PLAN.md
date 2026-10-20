@@ -1,72 +1,72 @@
-# Bolsillo — plan de trabajo
+# Bolsillo — work plan
 
-> Tu taller de software en el móvil: le pides apps a Claude Code en lenguaje natural,
-> se construyen y se ejecutan **en tu propio teléfono**, y puedes remezclar las de otros.
+> Your software workshop on your phone: you ask Claude Code for apps in natural language,
+> they're built and run **on your own phone**, and you can remix other people's.
 
-## 1. Qué existe ya (octubre 2026)
+## 1. What already exists (October 2026)
 
-| Solución | Qué hace | Qué le falta para esta idea |
+| Solution | What it does | What it lacks for this idea |
 |---|---|---|
-| App Claude (pestaña Code) | Cliente móvil de sesiones en la nube o de tu PC (Remote Control) | El código no corre en el móvil; no usa sus recursos |
-| Claude Code en Termux (claude-code-android) | Claude Code nativo / en proot Ubuntu dentro de Android | Es una terminal: solo para técnicos |
-| AndCode, droid-harness | IDE móvil con agente + Ubuntu en proot | Pensados para programadores (diffs, ficheros, shell) |
-| Rork, Replit, Bolt, Lovable | Generan apps a partir de prompts | Corren en su nube, de pago, sin acceso al hardware del móvil, tú no controlas nada |
+| Claude app (Code tab) | Mobile client for sessions in the cloud or on your PC (Remote Control) | The code doesn't run on the phone; it doesn't use its resources |
+| Claude Code on Termux (claude-code-android) | Native Claude Code / in a proot Ubuntu inside Android | It's a terminal: for technical people only |
+| AndCode, droid-harness | Mobile IDE with an agent + Ubuntu in proot | Made for programmers (diffs, files, shell) |
+| Rork, Replit, Bolt, Lovable | Generate apps from prompts | Run in their cloud, paid, no access to the phone's hardware, you control nothing |
 
-**Hueco:** nadie combina *runtime local en el móvil* + *interfaz para gente no técnica* +
-*catálogo de apps para remezclar* ("quiero la app de audiolibros de mi amigo, pero con X").
+**Gap:** nobody combines a *local runtime on the phone* + *an interface for non-technical people* +
+*a catalog of apps to remix* ("I want my friend's audiobook app, but with X").
 
-## 2. Arquitectura
+## 2. Architecture
 
 ```
 ┌────────────── Android ──────────────────────────────────────┐
 │  Termux (+ Termux:API)                                       │
-│   └─ Bolsillo (Node, sin dependencias)  127.0.0.1:7700        │
-│        ├─ PWA móvil: chat, proyectos, plantillas, vista previa │
-│        ├─ Agente: `claude -p --output-format stream-json`     │
-│        │    una sesión por proyecto (se reanuda con --resume)  │
-│        ├─ Ejecutor: arranca cada app en su puerto (7701+)     │
-│        └─ Puente de dispositivo: termux-* (TTS, notificación,  │
-│             batería, vibración, cámara…) → /api/device/*       │
-│  projects/<app>/  ← código del usuario, cada uno con git      │
+│   └─ Bolsillo (Node, no dependencies)  127.0.0.1:7700         │
+│        ├─ Mobile PWA: chat, projects, templates, preview      │
+│        ├─ Agent: `claude -p --output-format stream-json`      │
+│        │    one session per project (resumed with --resume)   │
+│        ├─ Runner: starts each app on its own port (7701+)     │
+│        └─ Device bridge: termux-* (TTS, notification,         │
+│             battery, vibration, camera…) → /api/device/*      │
+│  projects/<app>/  ← the user's code, each one with git        │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Decisiones:
-- **Sin dependencias npm** en el orquestador → instala en segundos en Termux, nada que compilar en ARM.
-- **Claude Code como motor**, no reimplementamos el agente. Usa la suscripción del usuario.
-- **Apps = webs/PWA** primero (se "instalan" en la pantalla de inicio, funcionan offline);
-  APK nativo en una fase posterior.
-- Cada proyecto lleva un `CLAUDE.md` que le explica al agente las reglas del entorno
-  (puerto, `bolsillo.json`, capacidades del móvil disponibles).
-- Cada cambio del agente queda en un commit de git → botón "deshacer".
+Decisions:
+- **No npm dependencies** in the orchestrator → installs in seconds on Termux, nothing to compile on ARM.
+- **Claude Code as the engine**, we don't reimplement the agent. It uses the user's subscription.
+- **Apps = websites/PWAs** first (they "install" on the home screen, work offline);
+  native APK in a later phase.
+- Every project carries a `CLAUDE.md` that explains the environment's rules to the agent
+  (port, `bolsillo.json`, available phone capabilities).
+- Every change by the agent is a git commit → "undo" button.
 
-## 3. Fases
+## 3. Phases
 
-| Fase | Entregable | Estado |
+| Phase | Deliverable | Status |
 |---|---|---|
-| 0 | Investigación + plan | ✅ |
-| 1 | Orquestador + PWA + plantillas (audiolibros, web básica), probado en Linux | ✅ |
-| 2 | Instalador Termux de un comando, compatibilidad Android 8–17 en emulador ([COMPATIBILIDAD](COMPATIBILIDAD.md)), puente propio en vez de Termux:API | ✅ emuladores x86_64 · pendiente: móvil real arm64 y login real de Claude |
-| 3 | Remezclar desde URL de git / compartir proyecto (zip/QR), deshacer con git | pendiente |
-| 4 | App Android propia (WebView + proot + Ubuntu Base) sin Termux, tienda de apps, login de Claude desde la app, accesos directos | ✅ v0.2 (probado en emulador x86_64) |
-| 5 | Exportar a APK (Capacitor/TWA) y publicar apps a una URL pública (túnel) | pendiente |
+| 0 | Research + plan | ✅ |
+| 1 | Orchestrator + PWA + templates (audiobooks, basic web), tested on Linux | ✅ |
+| 2 | One-command Termux installer, Android 8–17 compatibility on emulators ([COMPATIBILITY](COMPATIBILITY.md)), own bridge instead of Termux:API | ✅ x86_64 emulators · pending: real arm64 phone and real Claude sign-in |
+| 3 | Remix from a git URL / share a project (zip/QR), undo with git | pending |
+| 4 | Own Android app (WebView + proot + Ubuntu Base) without Termux, app store, Claude sign-in from the app, shortcuts | ✅ v0.2 (tested on an x86_64 emulator) |
+| 5 | Export to APK (Capacitor/TWA) and publish apps at a public URL (tunnel) | pending |
 
-## 3b. Web o nativa (decisión, oct. 2026)
+## 3b. Web or native (decision, Oct 2026)
 
-- **Solo web (PWA) no basta**: un navegador no puede lanzar procesos, así que ni Linux ni Claude Code.
-- **Termux + PWA** funciona, pero obliga a instalar Termux desde F-Droid y teclear comandos.
-- **Elegido: APK nativo fino + Linux embebido + interfaz web en WebView.** El APK trae `proot`
-  (compilado para Android por Termux), descarga Ubuntu Base la primera vez e instala Node.js y
-  Claude Code. La interfaz sigue siendo HTML (la misma que en el PC) y lo nativo aporta lo que la
-  web no puede: mantener vivo el Linux (servicio en primer plano), hardware sin Termux:API,
-  iconos en la pantalla de inicio por app y abrir el login de Claude en el navegador.
-- Ubuntu (glibc) y no Alpine (musl): musl usa la llamada `fork` en x86_64 y Android la bloquea a las apps.
+- **Web only (PWA) isn't enough**: a browser can't launch processes, so neither Linux nor Claude Code.
+- **Termux + PWA** works, but forces installing Termux from F-Droid and typing commands.
+- **Chosen: a thin native APK + embedded Linux + web interface in a WebView.** The APK ships `proot`
+  (built for Android by Termux), downloads Ubuntu Base the first time and installs Node.js and
+  Claude Code. The interface is still HTML (the same as on the PC) and the native part adds what the
+  web can't: keeping Linux alive (foreground service), hardware without Termux:API, per-app home
+  screen icons and opening the Claude sign-in in the browser.
+- Ubuntu (glibc) and not Alpine (musl): musl uses the `fork` call on x86_64 and Android blocks it for apps.
 
-## 4. Riesgos
+## 4. Risks
 
-- **Permisos del agente**: por defecto `acceptEdits` + lista blanca de comandos (npm, node, git…). Modo "libre" opcional.
-- **Recursos del móvil**: batería y RAM; parar apps inactivas.
-- **Android mata procesos en segundo plano**: servicio en primer plano + wake lock. En Android 12+ el
-  límite de "procesos fantasma" puede matar a Claude; documentado cómo desactivarlo.
-- **Google Play**: `targetSdk 28` impide publicarlo allí; distribución como APK directo.
-- **Seguridad**: el panel escucha solo en 127.0.0.1; para red local exige token.
+- **Agent permissions**: `acceptEdits` by default + an allowlist of commands (npm, node, git…). Optional "free" mode.
+- **Phone resources**: battery and RAM; stop idle apps.
+- **Android kills background processes**: foreground service + wake lock. On Android 12+ the
+  "phantom process" limit can kill Claude; how to turn it off is documented.
+- **Google Play**: `targetSdk 28` prevents publishing there; distributed as a direct APK.
+- **Security**: the panel only listens on 127.0.0.1; on a local network it requires a token.

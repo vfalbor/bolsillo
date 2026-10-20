@@ -43,8 +43,8 @@ test('info reports the claude version', async () => {
 });
 
 test('full flow: create, chat twice (resumes session), undo, run, stop, delete', async () => {
-  const { data: p } = await call('/api/projects', 'POST', { name: 'Mis Cuentos', template: 'audiolibros' });
-  assert.equal(p.id, 'mis-cuentos');
+  const { data: p } = await call('/api/projects', 'POST', { name: 'My Stories', template: 'audiobooks' });
+  assert.equal(p.id, 'my-stories');
 
   const evs = await chat(p.id, 'pon dinosaurios');
   assert.deepEqual(evs.map((e) => e.type), ['session', 'tool', 'text', 'done']);
@@ -65,7 +65,7 @@ test('full flow: create, chat twice (resumes session), undo, run, stop, delete',
   const { data: run } = await call(`/api/projects/${p.id}/run`, 'POST');
   assert.equal(run.running, true);
   const page = await fetch(`http://127.0.0.1:${run.port}/`);
-  assert.match(await page.text(), /Mis cuentos/);
+  assert.match(await page.text(), /My stories/);
   assert.equal((await fetch(`http://127.0.0.1:${run.port}/.git/config`)).status, 404);
 
   await call(`/api/projects/${p.id}/stop`, 'POST');
@@ -110,7 +110,7 @@ test('claude sign-in: paste-the-code flow and saved keys', async () => {
     ({ data: s } = await call('/api/claude'));
     assert.equal(s.loggedIn, true);
 
-    assert.equal((await call('/api/claude/key', 'POST', { key: 'hola' })).status, 400);
+    assert.equal((await call('/api/claude/key', 'POST', { key: 'hello' })).status, 400);
     ({ data: s } = await call('/api/claude/key', 'POST', { key: 'sk-ant-oat01-abcdefghijkl' }));
     assert.deepEqual(app.account.env(), { CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-abcdefghijkl' });
     await call('/api/claude/key', 'DELETE');
@@ -121,10 +121,10 @@ test('claude sign-in: paste-the-code flow and saved keys', async () => {
 });
 
 test('linux console and launch links', async () => {
-  const { data: out } = await call('/api/shell', 'POST', { cmd: 'echo hola && exit 3' });
-  assert.deepEqual(out, { code: 3, output: 'hola\n' });
+  const { data: out } = await call('/api/shell', 'POST', { cmd: 'echo hello && exit 3' });
+  assert.deepEqual(out, { code: 3, output: 'hello\n' });
 
-  const { data: p } = await call('/api/projects', 'POST', { name: 'Lanzable', template: 'web-basica' });
+  const { data: p } = await call('/api/projects', 'POST', { name: 'Lanzable', template: 'basic-web' });
   const res = await fetch(`${base}/launch/${p.id}`, { redirect: 'manual' });
   assert.equal(res.status, 302);
   const target = res.headers.get('location');
@@ -151,9 +151,9 @@ test('device calls go to the Android bridge when present', async () => {
     const { data: caps } = await call('/api/device');
     assert.equal(caps.find((c) => c.name === 'speak').available, true);
     assert.equal(caps.find((c) => c.name === 'torch').available, false);
-    const { data } = await call('/api/device/speak', 'POST', { text: 'hola' });
+    const { data } = await call('/api/device/speak', 'POST', { text: 'hello' });
     assert.deepEqual(data, { ok: true });
-    assert.deepEqual(seen.at(-1), { url: '/speak', auth: 'Bearer t0k', body: { text: 'hola' } });
+    assert.deepEqual(seen.at(-1), { url: '/speak', auth: 'Bearer t0k', body: { text: 'hello' } });
     assert.equal((await call('/api/info')).data.android, true);
   } finally {
     delete process.env.BOLSILLO_BRIDGE;

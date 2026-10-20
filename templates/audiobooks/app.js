@@ -1,4 +1,4 @@
-// Kids audiobook player. Books come from libros.json (text read aloud with the phone's voice
+// Kids audiobook player. Books come from books.json (text read aloud with the phone's voice
 // or an "audio" file) plus audio files the parent adds, stored in IndexedDB.
 const $ = (id) => document.getElementById(id);
 const audio = $('audio');
@@ -29,7 +29,7 @@ async function storeAll(mode, fn) {
 
 // ---------- library ----------
 async function load() {
-  const base = await fetch('libros.json').then((r) => r.json()).catch(() => []);
+  const base = await fetch('books.json').then((r) => r.json()).catch(() => []);
   const mine = (await storeAll('readonly', (s) => s.getAll())) || [];
   books = [...base, ...mine.map((m, i) => ({ ...m, color: COLORS[i % COLORS.length], propio: true }))];
   render();
@@ -43,15 +43,15 @@ function render() {
     btn.className = 'book';
     btn.style.background = b.color || COLORS[0];
     const pct = Math.round((progress[b.id]?.pct || 0) * 100);
-    btn.innerHTML = `<span class="e">${b.emoji || '📖'}</span><span class="t"></span><span class="p">${pct ? `${pct}% escuchado` : 'Nuevo'}</span>`;
-    btn.querySelector('.t').textContent = b.titulo;
+    btn.innerHTML = `<span class="e">${b.emoji || '📖'}</span><span class="t"></span><span class="p">${pct ? `${pct}% listened` : 'New'}</span>`;
+    btn.querySelector('.t').textContent = b.title;
     btn.onclick = () => open(b);
     if (b.propio) btn.oncontextmenu = (e) => { e.preventDefault(); removeBook(b); };
     grid.append(btn);
   }
   const add = document.createElement('button');
   add.className = 'book add';
-  add.innerHTML = '<span class="e">➕</span><span class="t">Añadir audio</span>';
+  add.innerHTML = '<span class="e">➕</span><span class="t">Add audio</span>';
   add.onclick = () => $('file').click();
   grid.append(add);
 }
@@ -59,15 +59,15 @@ function render() {
 $('file').onchange = async (e) => {
   for (const f of e.target.files) {
     const id = 'propio-' + Date.now() + Math.random().toString(36).slice(2, 6);
-    const titulo = f.name.replace(/\.[^.]+$/, '');
-    await storeAll('readwrite', (s) => s.put({ id, titulo, emoji: '🎵', blob: f }));
+    const title = f.name.replace(/\.[^.]+$/, '');
+    await storeAll('readwrite', (s) => s.put({ id, title, emoji: '🎵', blob: f }));
   }
   e.target.value = '';
   load();
 };
 
 async function removeBook(b) {
-  if (!confirm(`¿Borrar "${b.titulo}"?`)) return;
+  if (!confirm(`Delete "${b.title}"?`)) return;
   await storeAll('readwrite', (s) => s.delete(b.id));
   load();
 }
@@ -81,12 +81,12 @@ function open(b) {
   current = b;
   $('player').classList.add('on');
   $('nowE').textContent = b.emoji || '📖';
-  $('nowT').textContent = b.titulo;
+  $('nowT').textContent = b.title;
   if (b.blob || b.audio) {
     audio.src = b.blob ? URL.createObjectURL(b.blob) : b.audio;
     audio.currentTime = progress[b.id]?.t || 0;
   } else {
-    speech.sentences = b.texto.match(/[^.!?]+[.!?]*/g) || [b.texto];
+    speech.sentences = b.text.match(/[^.!?]+[.!?]*/g) || [b.text];
     speech.i = progress[b.id]?.i || 0;
     if (speech.i >= speech.sentences.length) speech.i = 0;
   }
@@ -113,7 +113,7 @@ function speakNext() {
   if (!speech.playing) return;
   if (speech.i >= speech.sentences.length) { finished(); return; }
   const u = new SpeechSynthesisUtterance(speech.sentences[speech.i]);
-  u.lang = 'es-ES';
+  u.lang = 'en-US';
   u.rate = 0.9;
   u.pitch = 1.1;
   u.onend = () => { if (!speech.playing) return; speech.i++; track(); speakNext(); };

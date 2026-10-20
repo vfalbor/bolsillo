@@ -1,7 +1,7 @@
-// Deja el cli.js de Claude Code solo en ASCII: cada carácter no ASCII pasa a \uXXXX (los de fuera del
-// plano básico, como par de sustitutos). En el emulador wasm del navegador, Node y Bun fallan al
-// descodificar el UTF-8 de este fichero (SyntaxError / Segmentation fault) y en ASCII no hay nada que
-// descodificar. El original se guarda como cli-utf8.js para el autodiagnóstico.
+// Makes Claude Code's cli.js pure ASCII: every non-ASCII character becomes \uXXXX (those outside the
+// basic plane, as a surrogate pair). In the browser's wasm emulator, Node and Bun fail to decode this
+// file's UTF-8 (SyntaxError / Segmentation fault), and in ASCII there's nothing to decode. The original
+// is kept as cli-utf8.js for the self-check.
 //
 //   node safari/claude-ascii.mjs safari/image/overlay/usr/local/lib/claude-node
 import fs from 'node:fs';
@@ -17,6 +17,6 @@ for (let i = 0; i < s.length; i++) {
   if (c > 127) { res += s.slice(last, i) + '\\u' + c.toString(16).padStart(4, '0'); last = i + 1; }
 }
 res += s.slice(last);
-if (/[^\x00-\x7f]/.test(res)) throw new Error('queda algo no ASCII');
+if (/[^\x00-\x7f]/.test(res)) throw new Error('something non-ASCII is left');
 fs.writeFileSync(out, res, { mode: 0o755 });
-console.log(`${out}: ${s.length} → ${res.length} caracteres, todo ASCII`);
+console.log(`${out}: ${s.length} → ${res.length} characters, all ASCII`);
