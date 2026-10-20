@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bolsillo · apps en tu móvil con Claude Code</title>
+  <meta name="description" content="Dile a Claude Code qué app quieres y Bolsillo la construye y la ejecuta en tu propio teléfono, con su base de datos. Sin PC.">
+  <meta property="og:title" content="Bolsillo · tu taller de apps en el móvil">
+  <meta property="og:description" content="Dile a Claude Code qué app quieres y la construye y la ejecuta en tu propio teléfono.">
+  <meta property="og:image" content="https://vfalbor.github.io/bolsillo-video/poster.jpg">
+  <meta name="theme-color" content="#d9622b">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg: #f3ede4; --card: #fffaf3; --ink: #1f1b18; --soft: #6f625a; --accent: #d9622b; --accent-ink: #fff;
+      --line: #e5dccf; --tint: #fbe6d8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #171412; --card: #221e1b; --ink: #f3ede4; --soft: #b3a69b; --accent: #ef7a41; --line: #352f2a; --tint: #3a2618; }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+    a { color: var(--accent); }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+    header.top { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
+    .brand { font-weight: 800; font-size: 20px; text-decoration: none; color: var(--ink); display: flex; gap: 8px; align-items: center; }
+    .brand img { width: 30px; height: 30px; }
+    nav.links a { color: var(--soft); text-decoration: none; margin-left: 18px; font-size: 15px; }
+
+    .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 32px 0 56px; }
+    h1 { font-size: clamp(38px, 7vw, 64px); line-height: 1.04; margin: 0 0 18px; letter-spacing: -.02em; }
+    h1 em { font-style: normal; color: var(--accent); }
+    .lead { font-size: clamp(18px, 2.4vw, 21px); color: var(--soft); margin: 0 0 28px; max-width: 34em; }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 22px; border-radius: 999px; font-weight: 700; text-decoration: none; border: 1px solid var(--line); color: var(--ink); background: var(--card); }
+    .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+    .note { font-size: 14px; color: var(--soft); margin-top: 14px; }
+
+    .phone { justify-self: center; width: min(320px, 82vw); aspect-ratio: 1080 / 1920; border-radius: 38px; background: #1f1b18; padding: 10px; box-shadow: 0 30px 60px -20px rgba(80, 40, 10, .35); }
+    .phone video { width: 100%; height: 100%; border-radius: 29px; display: block; background: #f3ede4; object-fit: cover; }
+
+    section { padding: 56px 0; }
+    h2 { font-size: clamp(28px, 4.4vw, 40px); margin: 0 0 10px; letter-spacing: -.01em; }
+    .sub { color: var(--soft); margin: 0 0 28px; max-width: 40em; }
+
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: s; }
+    .steps li { list-style: none; background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 22px; }
+    .steps li::before { counter-increment: s; content: counter(s); display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--tint); color: var(--accent); font-weight: 800; margin-bottom: 12px; }
+    .steps b { display: block; font-size: 19px; margin-bottom: 4px; }
+    .steps p { margin: 0; color: var(--soft); }
+    .steps { padding: 0; margin: 0; }
+
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    .f { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; }
+    .f .i { font-size: 26px; }
+    .f b { display: block; margin: 6px 0 2px; }
+    .f p { margin: 0; color: var(--soft); font-size: 15px; }
+
+    .ways { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .way { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 24px; }
+    .way h3 { margin: 0 0 4px; font-size: 22px; }
+    .tag { display: inline-block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 3px 10px; border-radius: 999px; background: var(--tint); color: var(--accent); margin-bottom: 10px; }
+    .way ul { padding-left: 20px; margin: 12px 0 18px; color: var(--soft); }
+    .way li { margin: 4px 0; }
+
+    .faq details { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px; margin-bottom: 10px; }
+    .faq summary { font-weight: 700; cursor: pointer; }
+    .faq p { color: var(--soft); margin: 10px 0 2px; }
+
+    footer { border-top: 1px solid var(--line); padding: 28px 0 44px; color: var(--soft); font-size: 14px; }
+    code { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--tint); padding: 1px 6px; border-radius: 6px; }
+
+    @media (max-width: 760px) {
+      nav.links { display: none; }
+      .hero { grid-template-columns: 1fr; gap: 32px; padding-top: 12px; }
+      .steps, .ways { grid-template-columns: 1fr; }
+      section { padding: 40px 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="#"><img src="icon.svg" alt="">Bolsillo</a>
+      <nav class="links">
+        <a href="#como">Cómo funciona</a>
+        <a href="#instalar">Instalar</a>
+        <a href="https://github.com/vfalbor/bolsillo">GitHub</a>
+      </nav>
+    </header>
+
+    <div class="hero">
+      <div>
+        <h1>Tu taller de apps, <em>en el bolsillo</em>.</h1>
+        <p class="lead">Le dices a Claude Code qué app quieres, con tus palabras, y Bolsillo la construye y la ejecuta <b>en tu propio teléfono</b>. Con su base de datos, sin PC y sin servidores ajenos: el código es tuyo.</p>
+        <div class="cta">
+          <a class="btn primary" href="#instalar">📲 Instalar</a>
+          <a class="btn" href="https://github.com/vfalbor/bolsillo">Código en GitHub</a>
+        </div>
+        <p class="note">Necesitas una cuenta de Claude Pro o Max, o una clave de API.</p>
+      </div>
+      <div class="phone">
+        <video id="demo" src="https://vfalbor.github.io/bolsillo-video/bolsillo-demo.mp4" poster="https://vfalbor.github.io/bolsillo-video/poster.jpg" controls playsinline muted preload="metadata"></video>
+      </div>
+    </div>
+  </div>
+
+  <section id="como">
+    <div class="wrap">
+      <h2>De una idea a una app en un minuto</h2>
+      <p class="sub">El vídeo es una grabación real: se pidió una app de gastos con base de datos y Claude Code la hizo en 1 min 20 s.</p>
+      <ol class="steps">
+        <li><b>Pide</b><p>«Una app para apuntar mis gastos, con el total del mes bien grande». Sin saber programar.</p></li>
+        <li><b>Claude Code la construye</b><p>Escribe el código dentro del Linux de tu móvil, lo comprueba y te cuenta qué ha hecho.</p></li>
+        <li><b>Úsala</b><p>Se abre a pantalla completa y puedes ponerla en el inicio como cualquier app. ¿Algo que cambiar? Díselo.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Todo lo que trae</h2>
+      <p class="sub">Un Linux de verdad dentro del teléfono, con Node.js, git y Claude Code, y una tienda para tus apps encima.</p>
+      <div class="features">
+        <div class="f"><div class="i">🗄️</div><b>Base de datos</b><p>Tus apps guardan sus datos en SQLite, en el propio móvil.</p></div>
+        <div class="f"><div class="i">💬</div><b>Chat con Claude Code</b><p>Una conversación por app, que recuerda lo que ya habéis hecho.</p></div>
+        <div class="f"><div class="i">↶</div><b>Deshacer con un toque</b><p>Cada cambio queda guardado con git. Si no te gusta, vuelves atrás.</p></div>
+        <div class="f"><div class="i">🧭</div><b>Descubrir y remezclar</b><p>Apps listas para usar o para cambiar a tu gusto: audiolibros, lista de la compra, temporizador…</p></div>
+        <div class="f"><div class="i">📱</div><b>El hardware del móvil</b><p>Voz, vibración, linterna, avisos, batería, ubicación y portapapeles para tus apps.</p></div>
+        <div class="f"><div class="i">🔓</div><b>Código abierto</b><p>Licencia MIT. Las apps que creas son carpetas normales con su código.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="instalar">
+    <div class="wrap">
+      <h2>Instalar</h2>
+      <p class="sub">Dos formas, según tu teléfono.</p>
+      <div class="ways">
+        <div class="way">
+          <span class="tag">Lista para usar</span>
+          <h3>🤖 Android</h3>
+          <ul>
+            <li>Android 8 o superior, 64 bits, ~1,5 GB libres.</li>
+            <li>La primera vez prepara su Linux (Ubuntu en proot): unos minutos con conexión.</li>
+            <li>Después arranca en segundos, y tus apps funcionan sin conexión. Claude sí necesita internet para crearlas o cambiarlas.</li>
+          </ul>
+          <a class="btn primary" href="https://github.com/vfalbor/bolsillo/releases/latest">Descargar la APK</a>
+        </div>
+        <div class="way">
+          <span class="tag">Experimental</span>
+          <h3>🍏 iPhone (Safari)</h3>
+          <ul>
+            <li>Sin instalar nada: un Linux aarch64 entero se ejecuta dentro de Safari (QEMU compilado a WebAssembly).</li>
+            <li>Arranca desde una instantánea con Linux y Claude Code ya cargados, y el inicio de sesión está guiado en el chat.</li>
+            <li>Necesita un servidor propio que sirva el disco y dé red al Linux. Está en pruebas.</li>
+          </ul>
+          <a class="btn" href="https://github.com/vfalbor/bolsillo/tree/main/safari">Cómo montarlo</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq">
+    <div class="wrap">
+      <h2>Preguntas</h2>
+      <details><summary>¿Necesito saber programar?</summary><p>No. Describes la app y Claude Code la escribe. Si quieres, el código está ahí para mirarlo o tocarlo.</p></details>
+      <details><summary>¿Qué cuenta de Claude necesito?</summary><p>Una suscripción Pro o Max (inicias sesión desde la propia app) o una clave de API de Anthropic.</p></details>
+      <details><summary>¿Dónde se guardan mis apps y sus datos?</summary><p>En tu teléfono. En Android, en la carpeta de Bolsillo. En la versión de Safari, además se hace una copia en el servidor que tú montes, para recuperarlas al volver a abrir la página.</p></details>
+      <details><summary>¿Funcionan sin conexión?</summary><p>En Android, sí: las apps corren en el Linux del móvil. En Safari, de momento, no: la página y la red del Linux pasan por el servidor.</p></details>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      Bolsillo es un proyecto independiente de código abierto (MIT) que usa <a href="https://docs.anthropic.com/en/docs/claude-code/overview">Claude Code</a>; no es un producto de Anthropic.
+      · <a href="https://github.com/vfalbor/bolsillo">github.com/vfalbor/bolsillo</a>
+    </div>
+  </footer>
+  <script>
+    // El vídeo se reproduce solo, sin sonido, cuando se ve (no tiene audio).
+    const v = document.getElementById('demo');
+    new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); }, { threshold: 0.5 }).observe(v);
+  </script>
+</body>
+</html>

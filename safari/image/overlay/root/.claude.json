@@ -1,0 +1,9 @@
+{
+  "hasCompletedOnboarding": true,
+  "theme": "dark",
+  "numStartups": 1,
+  "projects": {
+    "/root": { "hasTrustDialogAccepted": true },
+    "/root/bolsillo": { "hasTrustDialogAccepted": true }
+  }
+}

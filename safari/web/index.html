@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#14161a">
+  <title>Bolsillo · Linux</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="vendor/xterm.css">
+  <style>
+    :root { --bg:#14161a; --fg:#e8e6e1; --dim:#9a978f; --acc:#f2a541; --ok:#6cc070; --bad:#e5604c; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+      font: 15px/1.4 -apple-system, system-ui, sans-serif; }
+    body { display: flex; flex-direction: column; padding-top: env(safe-area-inset-top); }
+    header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #2a2d33; }
+    header b { font-size: 16px; }
+    #status { flex: 1; color: var(--dim); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Barra de carga: cuánto falta para el Linux y para Claude (con lo que tardó en este iPhone la vez anterior). */
+    #progress { padding: 6px 12px 7px; border-bottom: 1px solid #2a2d33; font-size: 13px; }
+    #progress[hidden] { display: none; }
+    #progressBar { height: 6px; border-radius: 3px; background: #2a2d33; overflow: hidden; margin-bottom: 4px; }
+    #progressBar i { display: block; height: 100%; width: 0; background: var(--acc); transition: width .8s; }
+    #progress[data-done] #progressBar i { background: var(--ok); }
+    #progressText { color: var(--dim); }
+    #status.ok { color: var(--ok); } #status.bad { color: var(--bad); }
+    nav { display: flex; gap: 4px; }
+    nav button { background: #23262c; color: var(--fg); border: 0; border-radius: 8px; padding: 6px 12px; font: inherit; }
+    nav button[aria-pressed="true"] { background: var(--acc); color: #14161a; }
+    header { position: relative; }
+    #more { position: absolute; right: 8px; top: 100%; z-index: 20; display: flex; flex-direction: column; gap: 4px; min-width: 220px;
+      background: #1c1f24; border: 1px solid #3a3e46; border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px #0008; }
+    #more[hidden] { display: none; }
+    #more button { background: none; color: var(--fg); border: 0; border-radius: 8px; padding: 10px 12px; font: inherit; text-align: left; }
+    #more button[aria-pressed="true"] { background: #2a2d33; }
+    #more button[hidden] { display: none; }
+    .msg.login .copy { color: var(--acc); font-size: 14px; background: none; padding: 0; text-decoration: underline; }
+    .msg.login input { width: 100%; font: 12px ui-monospace, monospace; background: #0f1114; color: var(--fg); border: 1px solid #3a3e46; border-radius: 8px; padding: 6px; }
+    main { flex: 1; position: relative; min-height: 0; }
+    main > section { position: absolute; inset: 0; display: none; }
+    main > section.on { display: block; }
+    #panel iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+    #wait { display: flex; height: 100%; align-items: center; justify-content: center; flex-direction: column;
+      gap: 8px; padding: 24px; text-align: center; color: var(--dim); }
+    #wait strong { color: var(--fg); font-size: 17px; }
+    #term.on { display: flex; flex-direction: column; }
+    /* Chat: lo dibuja Safari (rápido); Claude, sin su interfaz de terminal, solo manda y recibe JSON. */
+    #chat.on { display: flex; flex-direction: column; }
+    #chatState { padding: 6px 12px; font-size: 13px; color: var(--dim); border-bottom: 1px solid #2a2d33; }
+    #chatLog { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+    .msg { max-width: 92%; padding: 8px 11px; border-radius: 12px; white-space: pre-wrap; word-break: break-word; line-height: 1.4; }
+    .msg.me { align-self: flex-end; background: var(--acc); color: #14161a; }
+    .msg.cc { align-self: flex-start; background: #23262c; }
+    .msg.tool { align-self: flex-start; background: none; color: var(--dim); font: 12px ui-monospace, monospace; padding: 0 4px; }
+    .msg.err { align-self: flex-start; background: #3a1f1b; }
+    .msg.login { display: flex; flex-direction: column; gap: 8px; }
+    .msg.login a { align-self: flex-start; background: var(--acc); color: #14161a; border-radius: 10px; padding: 10px 16px; font-weight: 600; text-decoration: none; }
+    .msg.login a[aria-disabled] { opacity: .5; pointer-events: none; }
+    .msg.login a.second { background: #3a3e46; color: var(--fg); }
+    .msg.login.opened a.go { background: #3a3e46; color: var(--fg); }
+    .msg.login.opened a.second { background: var(--acc); color: #14161a; }
+    .msg.login span { color: var(--dim); font-size: 14px; }
+    #chatInput { background: #1c1f24; color: var(--fg); border: 1px solid #3a3e46; border-radius: 10px;
+      padding: 9px 10px; font: 16px -apple-system, system-ui, sans-serif; }
+    #chatSend { background: var(--acc); color: #14161a; border: 0; border-radius: 10px; padding: 9px 14px; font: inherit; font-weight: 600; }
+    #chatForm { display: flex; gap: 6px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid #2a2d33; align-items: flex-end; }
+    #chatInput { flex: 1; resize: none; min-height: 40px; max-height: 30vh; }
+    #terminal { flex: 1; min-height: 0; padding: 4px; }
+    #termLink { display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: #2a2416; font-size: 13px; }
+    #termLink[hidden] { display: none; }
+    #termLink span { flex: 1; } #termLink a, #termLink button { background: var(--acc); color: #14161a; border: 0; border-radius: 8px;
+      padding: 6px 12px; font: inherit; font-weight: 600; text-decoration: none; }
+    /* Teclas que el teclado del móvil no tiene. Ctrl se queda pulsado para la siguiente tecla. */
+    #keys { display: flex; gap: 4px; overflow-x: auto; padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); border-top: 1px solid #2a2d33; }
+    #keys button { flex: none; min-width: 40px; background: #23262c; color: var(--fg); border: 0; border-radius: 6px;
+      padding: 8px 10px; font: 13px ui-monospace, monospace; }
+    #keys button[aria-pressed="true"] { background: var(--acc); color: #14161a; }
+    #debug { overflow: auto; padding: 8px 12px 24px; font: 12px/1.4 ui-monospace, monospace; }
+    #debug h3 { font: 600 13px -apple-system, system-ui, sans-serif; margin: 12px 0 4px; color: var(--acc); }
+    #debug pre { white-space: pre-wrap; word-break: break-all; margin: 0; color: var(--fg); }
+    #debug .ev { color: var(--dim); } #debug .ev b { color: var(--fg); font-weight: 500; }
+    #debug button { background: #23262c; color: var(--fg); border: 1px solid var(--acc); border-radius: 8px; padding: 5px 10px; font: inherit; }
+    /* Monitor: siempre visible, ocupa su propia franja y nunca tapa la app. */
+    #health { border-bottom: 1px solid #2a2d33; font-size: 13px; }
+    #healthBar { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 12px; background: none; border: 0;
+      color: var(--fg); font: inherit; text-align: left; }
+    #healthDot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); flex: none; }
+    #health[data-level="ok"] #healthDot { background: var(--ok); }
+    #health[data-level="warn"] #healthDot { background: var(--acc); }
+    #health[data-level="bad"] #healthDot { background: var(--bad); }
+    #health[data-level="bad"] #healthBar { background: #3a1f1b; }
+    #healthText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #healthMore { padding: 0 12px 8px 29px; color: var(--dim); max-height: 40vh; overflow: auto; }
+    #healthMore ul { margin: 4px 0; padding-left: 16px; color: var(--fg); }
+    #healthMore a { color: var(--acc); }
+    #healthMore dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 6px 0 0; }
+    #healthMore dd { margin: 0; color: var(--fg); }
+    .bgBtn { margin: 6px 6px 0 0; background: #23262c; color: var(--fg); border: 1px solid var(--acc); border-radius: 8px;
+      padding: 5px 10px; font: inherit; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <b>Bolsillo</b>
+    <span id="status">Preparando…</span>
+    <nav>
+      <button id="tChat" aria-pressed="false" hidden>Chat</button>
+      <button id="tPanel" aria-pressed="true">Apps</button>
+      <button id="tTerm" aria-pressed="false">Terminal</button>
+      <button id="tDebug" aria-pressed="false" hidden>Debug</button>
+      <button id="tMore" aria-expanded="false" aria-controls="more" aria-label="Más opciones" hidden>⋯</button>
+    </nav>
+    <div id="more" hidden>
+      <button id="mCopyToken" type="button">Copiar mi token de Claude</button>
+      <button id="mLogout" type="button">Cerrar sesión de Claude</button>
+    </div>
+  </header>
+  <div id="progress" hidden>
+    <div id="progressBar"><i></i></div>
+    <span id="progressText">Preparando…</span>
+  </div>
+  <div id="health" data-level="">
+    <button id="healthBar" aria-expanded="false" aria-controls="healthMore">
+      <span id="healthDot"></span><span id="healthText">Vigilando la memoria…</span><span aria-hidden="true">▾</span>
+    </button>
+    <div id="healthMore" role="status" aria-live="polite" hidden></div>
+  </div>
+  <main>
+    <section id="panel" class="on">
+      <div id="wait"><strong>Arrancando tu Linux…</strong><span id="waitMsg">La primera vez tarda unos minutos.</span></div>
+    </section>
+    <section id="chat">
+      <div id="chatState" role="status" aria-live="polite">Arrancando el Linux…</div>
+      <div id="chatLog" aria-live="polite"></div>
+      <form id="chatForm">
+        <textarea id="chatInput" rows="2" placeholder="Escribe a Claude…" autocapitalize="sentences"></textarea>
+        <button type="submit" id="chatSend">Enviar</button>
+      </form>
+    </section>
+    <section id="term">
+      <div id="termLink" hidden><span>Enlace para iniciar sesión:</span><a id="termLinkOpen" target="_blank" rel="noopener">Abrir</a><button type="button" id="termLinkCopy">Copiar</button></div>
+      <div id="terminal"></div>
+      <div id="keys" role="toolbar" aria-label="Teclas especiales">
+        <button data-k="paste">Pegar</button><button data-k="ctrl" aria-pressed="false">Ctrl</button><button data-k="\x03">^C</button><button data-k="\x1b">Esc</button>
+        <button data-k="\t">Tab</button><button data-k="\x1b[A">↑</button><button data-k="\x1b[B">↓</button>
+        <button data-k="\x1b[D">←</button><button data-k="\x1b[C">→</button><button data-k="\x04">^D</button>
+        <button data-k="\x1a">^Z</button><button data-k="\x0c">^L</button><button data-k="|">|</button>
+        <button data-k="~">~</button><button data-k="/">/</button><button data-k="-">-</button>
+      </div>
+    </section>
+    <section id="debug"></section>
+  </main>
+
+  <script src="./lazy-load.js"></script>
+  <script src="vendor/xterm.js"></script>
+  <script src="vendor/xterm-pty.js"></script>
+  <script type="module">
+    import './arg-module.js';
+    import initEmscriptenModule from './out.js';
+
+    const $ = (id) => document.getElementById(id);
+    const started = performance.now();
+    const secs = () => Math.round((performance.now() - started) / 1000);
+    const status = (text, cls = '') => { $('status').textContent = text; $('status').className = cls; };
+    window.bolsillo = { events: [] }; // para las pruebas automáticas
+    let tail = ''; // lo último que escribió el Linux en la terminal
+    // Lo que sale de aquí (informes al servidor) nunca lleva tokens de Claude ni el código de inicio de sesión.
+    const redact = (t) => t.replace(/sk-ant-[A-Za-z0-9_-]+/g, 'sk-ant-…(oculto)').replace(/(Paste code here if prompted > )\S+/g, '$1…(oculto)');
+    // Modo depuración (?debug=1, se recuerda): pestaña Debug con todo lo que pasa por detrás, y el
+    // servidor recibe el estado cada 5 s (con la terminal) para poder analizarlo en directo.
+    const urlDebug = new URLSearchParams(location.search).get('debug');
+    try { if (urlDebug != null) localStorage.setItem('bolsillo-debug', urlDebug === '1' ? '1' : ''); } catch {}
+    // Modo chat por defecto; ?modo=tui deja la interfaz de terminal de Claude.
+    const CHAT = new URLSearchParams(location.search).get('modo') !== 'tui';
+    const chatText = new TextDecoder();
+    const DEBUG = (() => { try { return localStorage.getItem('bolsillo-debug') === '1'; } catch { return urlDebug === '1'; } })();
+    const debugLog = []; // { t, text }
+    let vmDebug = null; // lo último de /api/debug
+    const dlog = (text) => {
+      debugLog.push({ t: secs(), at: new Date().toLocaleTimeString(), text });
+      if (debugLog.length > 400) debugLog.shift();
+      if (DEBUG && $('debug').classList.contains('on')) renderDebug();
+    };
+    // ---- Barra de carga ----
+    // Etapas: descargar el emulador, arrancar el Linux y cargar Claude Code (y, si hace falta, el inicio de
+    // sesión). Cada una avanza con el tiempo que tardó la vez anterior en este iPhone (se guarda), y se da
+    // por terminada con la señal real: el Linux arriba, y Claude contestando «initialize» (chat) o con su
+    // pantalla (terminal). El tiempo se cuenta en segundos de página activa: si iOS la congela, no avanza.
+    const progress = (() => {
+      // Desde una instantánea (Linux y Claude ya cargados) las etapas son otras: casi todo es leerla.
+      const SNAP = !!window.bolsilloDisk?.useSnapshot;
+      const KEY = SNAP ? 'bolsillo-tiempos-snap' : 'bolsillo-tiempos';
+      const past = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
+      const expect = SNAP ? { descarga: past.descarga || 25, linux: past.linux || 90, login: 30, claude: past.claude || 20 }
+        : { descarga: past.descarga || 25, linux: past.linux || 45, login: past.login || 420, claude: past.claude || 420 };
+      const label = { descarga: 'Descargando el emulador', linux: SNAP ? 'Recuperando Linux y Claude ya cargados' : 'Arrancando Linux', login: 'Preparando el inicio de sesión de Claude',
+        espera: 'Esperando a que autorices en claude.ai', claude: 'Cargando Claude Code' };
+      const P = { stage: 'descarga', ticks: 0, at: { descarga: 0 }, done: false, waiting: false };
+      const save = (k, v) => { past[k] = Math.round(v); try { localStorage.setItem(KEY, JSON.stringify(past)); } catch {} };
+      const enter = (stage) => {
+        if (P.done || P.stage === stage) return;
+        const used = P.ticks - (P.at[P.stage] ?? 0);
+        if (P.stage !== 'espera' && used > 3) save(P.stage, used);
+        P.stage = stage; P.at[stage] = P.ticks; P.waiting = stage === 'espera';
+        render();
+      };
+      const fmt = (s) => s < 90 ? `${Math.max(5, Math.round(s / 5) * 5)} s` : `${Math.round(s / 60)} min`;
+      const render = () => {
+        const el = $('progress');
+        if (!el) return;
+        el.hidden = false;
+        const order = ['descarga', 'linux', 'claude'];
+        const weight = SNAP ? { descarga: 10, linux: 80, claude: 10 } : { descarga: 8, linux: 22, claude: 70 };
+        const cur = P.stage === 'login' || P.stage === 'espera' ? 'claude' : P.stage;
+        const i = order.indexOf(cur);
+        const spent = P.ticks - (P.at[P.stage] ?? 0);
+        const d = window.bolsilloDisk;
+        // Al recuperar la instantánea se sabe cuánto falta de verdad: los MB de ella que QEMU ya ha leído.
+        const real = SNAP && P.stage === 'linux' && d.snapSizeMB ? d.snapMB / d.snapSizeMB : null;
+        const frac = P.waiting ? 0 : Math.min(0.97, real ?? spent / expect[P.stage]);
+        let pct = order.slice(0, i).reduce((a, k) => a + weight[k], 0) + (P.stage === 'login' ? 0 : weight[cur] * frac);
+        if (P.done) pct = 100;
+        let left = P.waiting ? 0 : real > 0.05 ? spent / real - spent : Math.max(0, expect[P.stage] - spent);
+        for (const k of order.slice(i + 1)) left += expect[k];
+        if (P.stage === 'login') left += expect.claude;
+        el.querySelector('i').style.width = `${pct.toFixed(1)}%`;
+        el.toggleAttribute('data-done', P.done);
+        $('progressText').textContent = P.done ? P.doneText
+          : P.waiting ? `${label.espera} · luego Claude tarda ~${fmt(expect.claude)}`
+          : `${label[P.stage]}… ${Math.round(pct)} % · quedan ~${fmt(left)}`;
+      };
+      setInterval(() => { if (!P.done) { P.ticks++; render(); } }, 1000);
+      return {
+        on(name) { if (name === 'module') enter('linux'); if (name === 'shell' && !CHAT) enter('claude'); },
+        linuxReady() { enter('claude'); },
+        login() { enter('login'); },
+        waiting() { enter('espera'); },
+        claudeLoading() { if (P.stage !== 'claude') enter('claude'); },
+        ready(text) {
+          if (P.done) return;
+          const used = P.ticks - (P.at.claude ?? 0);
+          if (used > 3) save('claude', used);
+          P.done = true; P.doneText = text || `Claude listo (${fmt(P.ticks)} en total)`;
+          render(); setTimeout(() => { $('progress').hidden = true; }, 8000);
+        },
+      };
+    })();
+    window.bolsillo.progress = progress;
+
+    const mark = (name, extra) => {
+      window.bolsillo.events.push({ name, t: secs(), ...extra });
+      progress.on(name);
+      console.log(`[bolsillo] ${name} +${secs()}s`);
+      dlog(`hito: ${name}${extra ? ' ' + JSON.stringify(extra) : ''}`);
+      report(name);
+    };
+    // Informe para quien prueba: cada hito y, cada 20 s, el estado del disco; la puerta lo guarda en un log.
+    const report = (name) => {
+      try {
+        navigator.sendBeacon('/vm/report', JSON.stringify({ name, t: secs(), ua: navigator.userAgent, disk: window.bolsilloDisk,
+          heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : undefined,
+          health: window.bolsillo.health, bg: window.bolsillo.bg, net: window.bolsillo.net, hidden: document.hidden,
+          tail: DEBUG ? redact(tail.slice(-3000)) : name === 'error' || name === 'shell' ? redact(tail.slice(-600)) : undefined,
+          debug: DEBUG ? { log: debugLog.slice(-15), diag: vmDebug?.diag, diagLog: vmDebug?.logs?.['/var/log/bolsillo-diag.log']?.slice(-4000),
+            monitor: vmDebug?.logs?.['/var/log/bolsillo-monitor.log']?.slice(-5000), vmDebugAt: vmDebug?.at,
+            serverLog: vmDebug?.logs?.['/var/log/bolsillo.log']?.slice(-2000) } : undefined }));
+      } catch {}
+    };
+    setInterval(() => report('tick'), DEBUG ? 5000 : 20000);
+    window.addEventListener('error', (e) => mark('error', { msg: String(e.message).slice(0, 300) }));
+    window.addEventListener('unhandledrejection', (e) => mark('error', { msg: String(e.reason?.message || e.reason).slice(0, 300) }));
+
+    // Pestañas: todo en la misma página, porque iOS congela las pestañas en segundo plano.
+    const show = (which) => {
+      for (const [sec, btn] of [['chat', 'tChat'], ['panel', 'tPanel'], ['term', 'tTerm'], ['debug', 'tDebug']]) {
+        $(sec).classList.toggle('on', which === sec);
+        $(btn).setAttribute('aria-pressed', which === sec);
+      }
+      if (which === 'term') { fit(); xterm.focus(); window.bolsillo.sendTty?.(); }
+      if (which === 'debug') renderDebug();
+    };
+    $('tChat').onclick = () => show('chat');
+    $('tPanel').onclick = () => show('panel');
+    $('tTerm').onclick = () => show('term');
+    $('tDebug').onclick = () => show('debug');
+    // En el modo chat, Terminal y Debug van al menú ⋯ (no hace falta verlos para usar Claude).
+    const more = (open) => { $('more').hidden = !open; $('tMore').setAttribute('aria-expanded', String(open)); };
+    $('tMore').onclick = (e) => { e.stopPropagation(); more($('more').hidden); };
+    document.addEventListener('click', (e) => { if (!$('more').hidden && !$('more').contains(e.target)) more(false); });
+    $('more').addEventListener('click', (e) => { if (e.target.closest('button')) more(false); });
+
+    // ---- Monitor de salud: memoria del Linux, del navegador, disco y red, con recomendaciones ----
+    // Safari no dice cuánta memoria usa la pestaña ni avisa antes de matarla, así que se vigila lo que sí
+    // se ve: si la vez anterior la página murió sin cerrarse, la memoria libre del Linux, lo que se ha
+    // escrito en el disco (vive en la memoria de la pestaña), los bloqueos del hilo principal y la descarga.
+    const health = window.bolsillo.health = { level: '', tips: [] };
+    const RUN_KEY = 'bolsillo-running';
+    const store = { get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+      set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+    const prevRun = store.get(RUN_KEY); // sigue ahí si la página anterior no llegó a cerrarse (Safari la mató)
+    const prevCrash = prevRun && Date.now() - prevRun.at < 30 * 60000 ? prevRun : null;
+    store.set(RUN_KEY, { at: Date.now(), mem: window.bolsilloDisk.memMB, q: location.search });
+    window.addEventListener('pagehide', () => store.set(RUN_KEY, null));
+    window.addEventListener('pageshow', (e) => { if (e.persisted) store.set(RUN_KEY, { at: Date.now(), mem: window.bolsilloDisk.memMB, q: location.search }); });
+    const lighter = (mem) => [[768, './?mem=768&tb=64&snap=0'], [512, './?mem=512&tb=64&snap=0'], [384, './?mem=384&tb=64&snap=0']]
+      .find(([m]) => m < mem);
+
+    let maxLag = 0, lastBeat = Date.now(), lastWait = 0, lastCheck = performance.now();
+    setInterval(() => {
+      const now = Date.now(), gap = now - lastBeat - 250; // reloj de pared: cuenta también el móvil dormido
+      if (gap > 10000 && window.bolsillo.bg) window.bolsillo.bg.frozenMs += gap; // la página estuvo congelada
+      else maxLag = Math.max(maxLag, gap);
+      lastBeat = now;
+    }, 250);
+    let guest = null, guestAt = 0, guestPending = false;
+    // Cada pregunta al Linux le cuesta CPU (en el emulador, segundos): como mucho una cada 15 s.
+    let guestAskedAt = 0;
+    const askGuest = async () => {
+      if (!window.bolsillo.info || guestPending || net.displaced || performance.now() - guestAskedAt < 30000) return;
+      guestAskedAt = performance.now();
+      guestPending = true;
+      try {
+        const r = await fetch('/api/health', { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+        if (r.ok) {
+          guest = await r.json(); guestAt = performance.now();
+          const top = guest.top?.[0];
+          dlog(`linux: usados ${guest.totalMB - guest.availMB} MB, libres ${guest.availMB} de ${guest.totalMB} MB · carga ${guest.load.toFixed(2)}`
+            + (top ? ` · arriba: ${procName(top)} ${top.cpu ?? '?'}% CPU ${top.rssMB} MB` : ''));
+        }
+      } catch {} finally { guestPending = false; }
+    };
+
+    // Nombre comprensible de un proceso del Linux (Node llama «MainThread» a todos sus hilos).
+    const procName = (p) => /claude/.test(p.cmd) ? 'claude' : /server\.js/.test(p.cmd) ? 'servidor de Bolsillo'
+      : /bolsillo-monitor/.test(p.cmd) ? 'monitor' : p.name;
+    const checkHealth = () => {
+      const now = performance.now(), d = window.bolsilloDisk, tips = [];
+      const tip = (level, text, link) => tips.push({ level, text, link });
+      const waitShare = (d.waitMs - lastWait) / (now - lastCheck); // parte del tiempo esperando al disco
+      const lag = Math.max(0, maxLag - (d.waitMs - lastWait)); // bloqueos que no son la descarga
+      lastWait = d.waitMs; lastCheck = now; maxLag = 0;
+
+      // El aviso del cierre anterior se queda hasta que este arranque lleva un minuto con el panel abierto.
+      if (prevCrash && !(window.bolsillo.infoAt && now - window.bolsillo.infoAt > 60000)) {
+        const l = lighter(prevCrash.mem);
+        const ran = Math.round((Date.now() - prevCrash.at) / 60000);
+        tip('warn', `La sesión anterior (${prevCrash.mem} MB, abierta hace ${ran} min) terminó sin cerrarse: o Safari la mató por memoria o la cerraste desde las pestañas.${l ? ` Si fue Safari, prueba con ${l[0]} MB.` : ''}`, l && l[1]);
+      }
+      if (guest) {
+        const free = guest.availMB / guest.totalMB, used = guest.totalMB - guest.availMB;
+        const mem = `usa ${used} MB, le quedan ${guest.availMB} de ${guest.totalMB} MB`;
+        const byMem = [...(guest.top || [])].sort((a, b) => b.rssMB - a.rssMB)[0];
+        const byCpu = (guest.top || []).find((p) => p.cpu != null);
+        const who = (p, what) => p ? ` · ${what}: ${procName(p)} (${p.cpu ?? '?'} % CPU, ${p.rssMB} MB)` : '';
+        if (free < 0.1) tip('bad', `El Linux casi no tiene memoria: ${mem}${who(byMem, 'el que más ocupa')}. ${guest.running ? `Para alguna de tus ${guest.running} apps en marcha` : 'Espera a que termine'} o usa una variante con más RAM.`);
+        else if (free < 0.2) tip('warn', `El Linux va justo de memoria: ${mem}${who(byMem, 'el que más ocupa')}. Evita arrancar más cosas a la vez.`);
+        if (guest.load > guest.cpus * 1.5) tip('warn', `CPU al límite: carga ${guest.load.toFixed(1)} con ${guest.cpus} núcleo${guest.cpus > 1 ? 's' : ''}${who(byCpu, 'lo que más gasta')}. Memoria: ${mem}. Irá lento hasta que termine.`);
+        if (now - guestAt > 60000) tip('warn', `El Linux lleva ${Math.round((now - guestAt) / 1000)} s sin contestar al monitor: está muy ocupado. Espera antes de pedir más cosas.`);
+      } else if (window.bolsillo.infoAt && now - window.bolsillo.infoAt > 60000) {
+        tip('warn', `El Linux no ha contestado al monitor desde que arrancó el panel (hace ${Math.round((now - window.bolsillo.infoAt) / 1000)} s): está muy ocupado.`);
+      }
+      const busy = guest?.busy > 0, b = window.bolsillo.bg, n = window.bolsillo.net;
+      if (n?.displaced) tip('bad', 'Otra pestaña de Bolsillo se ha quedado con la red: esta ya no se comunica con su Linux. Ciérrala o recárgala para recuperarla.');
+      else if (n?.downSince && Date.now() - n.downSince > 5000) tip('warn', `Sin conexión con el servidor de red desde hace ${Math.round((Date.now() - n.downSince) / 1000)} s: reconectando…`);
+      if (b?.lastHiddenMs && b.frozenMs > 30000 && Date.now() - b.hiddenAt - b.lastHiddenMs < 60000)
+        tip(busy ? 'warn' : 'info', `iOS pausó Bolsillo ${Math.round(b.frozenMs / 60000) || '<1'} min mientras estabas fuera.${b.audio ? '' : ' Activa «Seguir en segundo plano» (toca esta barra) para que Claude no se pare.'}`);
+      if (busy && !b?.audio) tip('warn', 'Claude está trabajando: si sales de Safari o bloqueas el móvil, iOS lo pausa. Toca aquí para seguir en segundo plano.');
+      if (d.badChunks) tip('warn', `${d.badChunks} trozos del disco llegaron corruptos y se han vuelto a descargar.`);
+      if (d.dirtyMB > 96) tip(d.dirtyMB > 256 ? 'bad' : 'warn', `Has escrito ${d.dirtyMB} MB en el disco: viven en la memoria de Safari y se pierden si la página se recarga. Borra lo que no necesites.`);
+      if (waitShare > 0.5) tip('warn', 'El Linux espera a la red para leer el disco: con Wi‑Fi irá más rápido.');
+      if (lag > 2000) tip('warn', `El teléfono se ha bloqueado ${(lag / 1000).toFixed(1)} s: cierra otras apps y pestañas para dejar memoria.`);
+      if (performance.memory) {
+        const m = performance.memory, used = m.usedJSHeapSize / m.jsHeapSizeLimit;
+        if (used > 0.8) tip(used > 0.9 ? 'bad' : 'warn', `El navegador usa el ${Math.round(used * 100)} % de su memoria para JavaScript.`);
+      }
+      if (document.hidden === false && d.memMB >= 1024 && /iPhone|iPad/.test(navigator.userAgent) && !prevCrash && !window.bolsillo.info && now - started > 120000)
+        tip('warn', 'Arrancar con 1024 MB pide mucha memoria al iPhone. Si se recarga sola, usa una variante más ligera.', lighter(1024)[1]);
+
+      const rank = { bad: 2, warn: 1, info: 0 };
+      tips.sort((a, b) => rank[b.level] - rank[a.level]);
+      health.level = tips[0]?.level === 'info' ? 'ok' : tips[0]?.level || 'ok';
+      health.tips = tips.map((t) => t.text);
+      health.guest = guest && { availMB: guest.availMB, totalMB: guest.totalMB, load: guest.load, running: guest.running, top: guest.top?.slice(0, 3) };
+      health.lagMs = Math.round(lag);
+      health.prevCrash = !!prevCrash;
+
+      const summary = guest ? `Linux: usa ${guest.totalMB - guest.availMB} MB, libres ${guest.availMB} de ${guest.totalMB} MB · carga ${guest.load.toFixed(1)}` : `Linux: ${d.memMB} MB de RAM`;
+      $('health').dataset.level = health.level;
+      $('healthText').textContent = tips[0] ? tips[0].text : `Todo bien · ${summary} · disco ${d.fetchedMB} MB bajados`;
+      const row = (k, v) => [Object.assign(document.createElement('dt'), { textContent: k }), Object.assign(document.createElement('dd'), { textContent: v })];
+      const ul = document.createElement('ul');
+      for (const t of tips) {
+        const li = document.createElement('li');
+        li.textContent = t.text + ' ';
+        if (t.link) li.append(Object.assign(document.createElement('a'), { href: t.link, textContent: 'Cambiar' }));
+        ul.append(li);
+      }
+      const dl = document.createElement('dl');
+      dl.append(...row('Linux', guest ? `usa ${guest.totalMB - guest.availMB} MB · libres ${guest.availMB} de ${guest.totalMB} MB · carga ${guest.load.toFixed(2)} · ${guest.running} apps en marcha` : `${d.memMB} MB de RAM (aún sin datos)`),
+        ...(guest?.top?.length ? row('Procesos', guest.top.slice(0, 3).map((p) => `${procName(p)} ${p.cpu ?? '?'}% ${p.rssMB} MB`).join(' · ')) : []),
+        ...row('Disco', `${d.fetchedMB} MB pedidos en ${d.requests} esperas${d.compressed ? ' (comprimido)' : ''} · ${d.prefetchHits} bloques ya traídos por adelantado (${Math.round(d.prefetchMB)} MB) · ${d.cachedMB} MB en caché · ${d.dirtyMB} MB escritos${d.badChunks ? ` · ${d.badChunks} corregidos` : ''}`),
+        ...row('Espera red', `${Math.round(waitShare * 100)} % del tiempo`),
+        ...row('Bloqueos', `${(lag / 1000).toFixed(1)} s en los últimos 5 s`),
+        ...(performance.memory ? row('JavaScript', `${Math.round(performance.memory.usedJSHeapSize / 1048576)} MB`) : []),
+        ...row('Segundo plano', `${window.bolsillo.bg?.audio ? 'activado' : 'desactivado'}${window.bolsillo.bg?.aliveWhileHidden == null ? '' : window.bolsillo.bg.aliveWhileHidden ? ' · siguió vivo la última vez' : ' · iOS lo pausó la última vez'}${window.bolsillo.bg?.wake ? ' · pantalla siempre encendida' : ''}`),
+        ...row('Red', window.bolsillo.net?.downSince ? 'reconectando…' : `bien${window.bolsillo.net?.reconnects ? ` · ${window.bolsillo.net.reconnects} reconexiones` : ''}`),
+        ...row('Arranque', d.useSnapshot ? `instantánea (${d.memMB} MB, ${d.snapMB} de ${d.snapSizeMB} MB leídos)` : `en frío (${d.memMB} MB)`));
+      $('healthMore').replaceChildren(...(tips.length ? [ul] : []), dl, bgButton());
+      askGuest();
+      syncWake();
+    };
+    // Botón para el audio de segundo plano: hace falta que lo pulse la persona (iOS no deja sonar solo).
+    const bgButton = () => Object.assign(document.createElement('button'), {
+      className: 'bgBtn', type: 'button',
+      textContent: window.bolsillo.bg?.audio ? 'Dejar de seguir en segundo plano' : 'Seguir en segundo plano',
+      onclick: (e) => { e.stopPropagation(); window.bolsillo.setBackground(!window.bolsillo.bg?.audio); },
+    });
+    // Vista de depuración: qué hace la página, el Linux y el servidor, en directo.
+    const renderDebug = () => {
+      const h = (t) => Object.assign(document.createElement('h3'), { textContent: t });
+      const pre = (t) => Object.assign(document.createElement('pre'), { textContent: t });
+      const d = window.bolsilloDisk, g = guest;
+      const state = [
+        `página: ${secs()} s · ${d.useSnapshot ? `instantánea ${d.memMB} MB` : `arranque en frío ${d.memMB} MB`} · tb ${d.tbMB || 'por defecto'}`,
+        `disco: ${d.fetchedMB} MB pedidos en ${d.requests} peticiones${d.compressed ? ' comprimidas' : ''} · espera ${(d.waitMs / 1000).toFixed(1)} s · por adelantado ${d.prefetchHits} bloques (${Math.round(d.prefetchMB)} MB) · caché ${d.cachedMB} MB · escritos ${d.dirtyMB} MB · corruptos ${d.badChunks}`,
+        g ? `linux: usa ${g.totalMB - g.availMB} MB · libres ${g.availMB}/${g.totalMB} MB · carga ${g.load.toFixed(2)} · subida hace ${g.uptime} s · servidor ${g.serverMB} MB` : 'linux: sin datos todavía',
+        ...(g?.top || []).map((p) => `  ${String(p.pid).padStart(5)} ${String(p.cpu ?? '?').padStart(3)}% ${String(p.rssMB).padStart(4)} MB  ${p.cmd}`),
+        `red: ${net.downSince ? 'caída, reconectando' : 'conectada'} · ${net.reconnects} reconexiones`,
+        `segundo plano: audio ${bg.audio ? 'sí' : 'no'} · pantalla fija ${bg.wake ? 'sí' : 'no'} · última vez fuera ${Math.round(bg.lastHiddenMs / 1000)} s, congelado ${Math.round(bg.frozenMs / 1000)} s`,
+      ].join('\n');
+      const diagBtn = Object.assign(document.createElement('button'), { textContent: vmDebug?.diag?.state === 'running' ? 'Autodiagnóstico en marcha…' : 'Lanzar autodiagnóstico', onclick: () => startDiag() });
+      $('debug').replaceChildren(
+        pre('Todo lo de esta pestaña se envía al servidor cada 5 s para que Claude lo analice en directo. Al Linux se le pregunta cada 15 s para no quitarle CPU.'),
+        h('Estado'), pre(state),
+        h(`Monitor interno del Linux (cada 15 s${vmDebug?.at ? `, leído a las ${vmDebug.at}` : ''})`),
+        pre(vmDebug?.logs?.['/var/log/bolsillo-monitor.log']?.split('\n').slice(-40).reverse().join('\n') || '(esperando al Linux)'),
+        h('Autodiagnóstico del Linux'), diagBtn, pre(vmDebug?.logs?.['/var/log/bolsillo-diag.log'] || '(sin lanzar)'),
+        h('Qué está pasando (lo último arriba)'), ...debugLog.slice(-120).reverse().map((e) => {
+          const div = document.createElement('div'); div.className = 'ev';
+          div.append(`${e.at} +${e.t}s `, Object.assign(document.createElement('b'), { textContent: e.text }));
+          return div;
+        }),
+        h('Registro del servidor de Bolsillo (dentro del Linux)'), pre(vmDebug?.logs?.['/var/log/bolsillo.log'] || '(sin datos)'));
+    };
+    // Con el Linux saturado una respuesta puede tardar más de un minuto: se espera, sin pisarse.
+    let debugPending = false;
+    const pollDebug = async () => {
+      if (!window.bolsillo.info || net.displaced || debugPending) return;
+      debugPending = true;
+      try {
+        const t0 = performance.now();
+        const r = await fetch('/api/debug', { cache: 'no-store', signal: AbortSignal.timeout(90000) });
+        if (!r.ok) { dlog(`monitor interno: el Linux respondió ${r.status}`); return; }
+        const prev = vmDebug?.diag?.state;
+        vmDebug = { ...(await r.json()), at: new Date().toLocaleTimeString() };
+        const ms = performance.now() - t0;
+        if (ms > 10000) dlog(`monitor interno: el Linux tardó ${Math.round(ms / 1000)} s en contestar`);
+        if (prev && prev !== vmDebug.diag?.state) dlog(`autodiagnóstico: ${vmDebug.diag.state}${vmDebug.diag.ms ? ` en ${Math.round(vmDebug.diag.ms / 1000)} s` : ''}`);
+        if ($('debug').classList.contains('on')) renderDebug();
+      } catch (e) { dlog(`monitor interno: sin respuesta (${e.name === 'TimeoutError' ? 'más de 90 s' : e.message})`); }
+      finally { debugPending = false; }
+    };
+    const startDiag = async () => {
+      try {
+        dlog('autodiagnóstico: pidiéndolo al Linux…');
+        const res = await fetch('/api/debug/diag', { method: 'POST', signal: AbortSignal.timeout(90000) });
+        if (!res.ok) throw new Error(`el Linux respondió ${res.status}${res.status === 404 ? ' (su Bolsillo no tiene autodiagnóstico: ¿es otra pestaña o una versión vieja?)' : ''}`);
+        const r = await res.json();
+        dlog(`autodiagnóstico: ${r.state}`);
+        pollDebug();
+      } catch (e) { dlog(`autodiagnóstico: no se pudo lanzar (${e.name === 'TimeoutError' ? 'el Linux no contestó en 90 s' : e.message})`); }
+    };
+    if (DEBUG) {
+      $('tDebug').hidden = false;
+      setInterval(pollDebug, 30000);
+    }
+    $('healthBar').onclick = () => {
+      const open = $('healthMore').hidden;
+      $('healthMore').hidden = !open;
+      $('healthBar').setAttribute('aria-expanded', open);
+    };
+    setInterval(checkHealth, 5000);
+    setTimeout(checkHealth, 500);
+
+
+    // ---- Red que aguanta las pausas de iOS ----
+    // QEMU habla con c2w-net por un socket (-netdev socket) que, si se cierra, no vuelve a conectar: el
+    // Linux se quedaría sin red hasta recargar. iOS corta los WebSocket de las páginas en pausa, así que
+    // QEMU recibe uno que nunca se cierra: por debajo se reconecta solo y, mientras tanto, guarda lo que
+    // salga (o lo tira si se acumula: es Ethernet, TCP lo reenvía). Las tramas van con 4 bytes de
+    // longitud delante; si la conexión cae a mitad de una trama, se completa con ceros para que QEMU no
+    // pierda el paso (esa trama la descarta el Linux).
+    const net = window.bolsillo.net = { reconnects: 0, downSince: 0, lastDownMs: 0, displaced: false };
+    // Id de esta página: la red es de la última pestaña que la abre (ver gateway.js).
+    const SID = Math.random().toString(36).slice(2, 10);
+    const NativeWebSocket = WebSocket;
+    class SteadySocket {
+      constructor(url, protocols) {
+        Object.assign(this, { url, protocols, readyState: 0, binaryType: 'arraybuffer', queue: [], closed: false, tries: 0, left: 0, hdr: [] });
+        this.connect();
+        const now = () => { if (this.ws?.readyState !== 1 && !this.closed) { clearTimeout(this.timer); this.connect(); } };
+        addEventListener('online', now);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) now(); });
+      }
+      get bufferedAmount() { return this.ws?.bufferedAmount || 0; }
+      connect() {
+        if (this.ws && this.ws.readyState <= 1) return;
+        const ws = this.ws = new NativeWebSocket(`${this.url}?sid=${SID}`, this.protocols);
+        ws.binaryType = 'arraybuffer';
+        ws.onopen = () => {
+          this.tries = 0;
+          if (net.downSince) { net.lastDownMs = Date.now() - net.downSince; net.downSince = 0; net.reconnects++; mark('net-back', { ms: net.lastDownMs }); }
+          for (const d of this.queue.splice(0)) ws.send(d);
+          if (this.readyState === 0) { this.readyState = 1; this.onopen?.(); }
+        };
+        ws.onmessage = (e) => { this.track(new Uint8Array(e.data)); this.onmessage?.(e); };
+        ws.onerror = () => {};
+        ws.onclose = () => {
+          if (ws !== this.ws) return;
+          if (this.closed) { this.readyState = 3; this.onclose?.(); return; }
+          if (!net.downSince) { net.downSince = Date.now(); mark('net-down'); }
+          if (this.left > 0) { // trama a medias: se rellena para no desincronizar a QEMU
+            const pad = new Uint8Array(this.left); this.left = 0;
+            this.onmessage?.({ data: pad.buffer });
+          }
+          this.hdr = [];
+          // Si otra pestaña se ha quedado con la red, esta no vuelve a intentarlo.
+          fetch(`/vm/net-owner?sid=${SID}`, { cache: 'no-store' }).then((r) => r.json()).then((o) => {
+            if (o.displaced) { net.displaced = true; this.closed = true; mark('net-displaced'); checkHealth(); }
+            else this.timer = setTimeout(() => this.connect(), Math.min(15000, 500 * 2 ** this.tries++));
+          }).catch(() => { this.timer = setTimeout(() => this.connect(), Math.min(15000, 500 * 2 ** this.tries++)); });
+        };
+      }
+      track(b) { // sigue el troceo de tramas que llegan: [longitud 4 bytes][trama]
+        for (let i = 0; i < b.length;) {
+          if (this.left > 0) { const n = Math.min(this.left, b.length - i); this.left -= n; i += n; continue; }
+          this.hdr.push(b[i++]);
+          if (this.hdr.length === 4) { this.left = ((this.hdr[0] << 24) | (this.hdr[1] << 16) | (this.hdr[2] << 8) | this.hdr[3]) >>> 0; this.hdr = []; }
+        }
+      }
+      send(d) {
+        if (this.ws?.readyState === 1) return this.ws.send(d);
+        this.queue.push(d);
+        if (this.queue.length > 512) this.queue.shift();
+      }
+      close() { this.closed = true; this.readyState = 2; this.ws?.close(); }
+    }
+    Object.assign(SteadySocket.prototype, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 });
+    window.WebSocket = function (url, protocols) {
+      return /\/net$/.test(url) ? new SteadySocket(url, protocols) : new NativeWebSocket(url, protocols);
+    };
+    Object.assign(window.WebSocket, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 });
+
+    // ---- Seguir trabajando con el móvil en otra cosa ----
+    // iOS congela la página (y con ella el Linux y Claude) en cuanto sales de Safari o se bloquea la
+    // pantalla. Dos ayudas: mientras Claude trabaja, la pantalla no se apaga sola (Wake Lock); y, si lo
+    // activas, un audio en silencio en bucle, que es lo único que deja a una web seguir viva en segundo
+    // plano en iOS. Se mide de verdad: si al volver los latidos se pararon, se sabe cuánto estuvo congelado.
+    const bg = window.bolsillo.bg = { audio: false, wake: false, hiddenAt: 0, frozenMs: 0, lastHiddenMs: 0, aliveWhileHidden: null };
+    let wakeLock = null;
+    const wantWake = () => !!window.bolsillo.health?.guest?.busy;
+    const syncWake = async () => {
+      try {
+        if (wantWake() && !document.hidden && !wakeLock && navigator.wakeLock) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => { wakeLock = null; bg.wake = false; });
+          bg.wake = true;
+        } else if (!wantWake() && wakeLock) { await wakeLock.release(); }
+      } catch {}
+    };
+    let silence = null;
+    const silentWav = () => { // 1 s de silencio, 8 kHz, 8 bits
+      const n = 8000, b = new DataView(new ArrayBuffer(44 + n));
+      const str = (o, t) => [...t].forEach((c, i) => b.setUint8(o + i, c.charCodeAt(0)));
+      str(0, 'RIFF'); b.setUint32(4, 36 + n, true); str(8, 'WAVEfmt '); b.setUint32(16, 16, true); b.setUint16(20, 1, true);
+      b.setUint16(22, 1, true); b.setUint32(24, n, true); b.setUint32(28, n, true); b.setUint16(32, 1, true); b.setUint16(34, 8, true);
+      str(36, 'data'); b.setUint32(40, n, true); for (let i = 0; i < n; i++) b.setUint8(44 + i, 128);
+      return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+    };
+    const setBackground = async (on) => {
+      if (on) {
+        silence ??= Object.assign(new Audio(silentWav()), { loop: true });
+        try { await silence.play(); bg.audio = true; } catch { bg.audio = false; }
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({ title: 'Bolsillo sigue trabajando', artist: 'Linux y Claude Code en segundo plano' });
+          navigator.mediaSession.setActionHandler('pause', () => setBackground(false));
+        }
+      } else { silence?.pause(); bg.audio = false; }
+      mark(bg.audio ? 'bg-on' : 'bg-off');
+      checkHealth();
+    };
+    window.bolsillo.setBackground = setBackground;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { bg.hiddenAt = Date.now(); bg.frozenMs = 0; mark('hidden', { audio: bg.audio }); return; }
+      bg.lastHiddenMs = Date.now() - bg.hiddenAt;
+      bg.aliveWhileHidden = bg.lastHiddenMs > 15000 ? bg.frozenMs < bg.lastHiddenMs / 2 : bg.aliveWhileHidden;
+      mark('visible', { awayMs: bg.lastHiddenMs, frozenMs: bg.frozenMs, audio: bg.audio });
+      syncWake();
+      checkHealth();
+    });
+
+    if (!crossOriginIsolated) {
+      status('Este navegador no permite memoria compartida (falta HTTPS o COOP/COEP)', 'bad');
+      throw new Error('crossOriginIsolated = false');
+    }
+
+    const xterm = new Terminal({ fontSize: 13, convertEol: false, theme: { background: '#14161a' } });
+    xterm.open($('terminal'));
+    window.bolsillo.xterm = xterm;
+    const fit = () => {
+      const el = $('terminal');
+      const cw = 7.8, ch = 17; // aproximación sin el addon fit
+      // Si el terminal está oculto (otra pestaña delante) mide 0: se calcula con la ventana, quitando la
+      // cabecera, la barra de teclas y el monitor (~190 px). Si no, Claude se dibujaría a 20 columnas.
+      const w = el.clientWidth || window.innerWidth, h = el.clientHeight || window.innerHeight - 190;
+      xterm.resize(Math.max(20, Math.floor((w - 8) / cw)), Math.max(8, Math.floor((h - 8) / ch)));
+    };
+    // El Linux no sabe el tamaño de este terminal (es un puerto serie): se lo dice el servidor de Bolsillo
+    // con stty y Claude se redibuja a esa medida. Se manda cuando el panel responde y tras cada cambio.
+    let ttySent = '', ttyTimer = 0;
+    const sendTty = () => {
+      clearTimeout(ttyTimer);
+      ttyTimer = setTimeout(async () => {
+        if (!window.bolsillo.info) return;
+        const size = { cols: xterm.cols, rows: xterm.rows }, key = `${size.cols}x${size.rows}`;
+        if (key === ttySent) return;
+        try {
+          const r = await fetch('/api/debug/tty', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(size), signal: AbortSignal.timeout(90000) });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok && j.ok) { ttySent = key; dlog(`terminal del Linux ajustado a ${key}`); }
+          else dlog(`no se pudo ajustar el terminal a ${key}: ${j.error || 'HTTP ' + r.status}`);
+        } catch (e) { dlog(`no se pudo ajustar el terminal a ${key}: ${e.message}`); }
+      }, 800);
+    };
+    window.bolsillo.sendTty = sendTty;
+    window.addEventListener('resize', () => { fit(); sendTty(); });
+    fit();
+    const { master, slave } = openpty();
+    xterm.loadAddon(master);
+    let ctrl = false;
+    const setCtrl = (on) => { ctrl = on; document.querySelector('#keys [data-k="ctrl"]').setAttribute('aria-pressed', on); };
+    const ldisc = master.ldisc, fromKeyboard = ldisc.writeFromLower.bind(ldisc);
+    const type = (data) => fromKeyboard(data);
+    // Con Ctrl pulsado en la barra, la siguiente letra que llegue (del teclado que sea) va como control:
+    // Ctrl+R, Ctrl+A… Se hace aquí, en la entrada del terminal, porque el teclado de iOS no siempre
+    // manda eventos de tecla.
+    ldisc.writeFromLower = (data) => {
+      if (ctrl && typeof data === 'string' && data.length === 1) {
+        const c = data.toUpperCase().charCodeAt(0);
+        if (c >= 64 && c <= 95) data = String.fromCharCode(c - 64);
+        setCtrl(false);
+      }
+      return fromKeyboard(data);
+    };
+    $('keys').addEventListener('pointerdown', (e) => e.preventDefault()); // que no se cierre el teclado
+    $('keys').addEventListener('click', (e) => {
+      const k = e.target.closest('button')?.dataset.k;
+      if (!k) return;
+      if (k === 'ctrl') { setCtrl(!ctrl); xterm.focus(); return; }
+      if (k === 'paste') {
+        // Pegar lo copiado (el código de claude.ai, por ejemplo): el teclado de iOS no lo pega en el terminal.
+        navigator.clipboard.readText().then((t) => { if (t) type(t); xterm.focus(); })
+          .catch(() => { const t = prompt('Pega aquí el texto:'); if (t) type(t); xterm.focus(); });
+        return;
+      }
+      type(k.replace(/\\x([0-9a-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\t/g, '\t'));
+      xterm.focus();
+    });
+    Module.pty = slave;
+    Module['mainScriptUrlOrBlob'] = location.origin + '/vm/out.js';
+
+    // Red: el WebSocket del mismo origen, que la puerta pasa a c2w-net. MAC fija para que c2w-net
+    // sepa a quién publicar los puertos del Linux.
+    const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/net`;
+    Module['websocket'] = { url: wsUrl };
+    const info = `t:${Math.round(Date.now() / 1000)}\nn:02:00:00:00:00:01\n`;
+
+    Module['preRun'].push((mod) => {
+      try { FS.mkdir('/pack'); } catch (e) {}
+      mod.FS.writeFile('/pack/info', info);
+    });
+    const readableCallbacks = [];
+    Module.pty.onReadable(() => { readableCallbacks.splice(0).forEach((cb) => cb()); });
+    Module['preRun'].push((mod) => {
+      mod['TTY'].stream_ops.poll = (stream, timeout, notify) => {
+        if (Module.pty.readable) return 1;
+        if (notify != null) {
+          notify.registerCleanupFunc(() => { const i = readableCallbacks.indexOf(notify); if (i !== -1) readableCallbacks.splice(i, 1); });
+          readableCallbacks.push(notify);
+        }
+        return 0;
+      };
+    });
+
+    // Si Claude enseña en la Terminal el enlace para iniciar sesión, sale una barra para abrirlo o copiarlo.
+    let termLinkUrl = '', termLinkTimer = 0;
+    const termLinkCheck = () => {
+      clearTimeout(termLinkTimer);
+      termLinkTimer = setTimeout(() => {
+        const plain = tail.replace(/\x1b\[(\d*)C/g, ' ').replace(/\x1b\[[0-9;?<>=]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '');
+        const url = loginUrl(plain.slice(plain.lastIndexOf('https://claude')));
+        if (!url || url === termLinkUrl || !/state=\w{20,}/.test(url)) return;
+        termLinkUrl = url; $('termLinkOpen').href = url; $('termLink').hidden = false; dlog('terminal: enlace de inicio de sesión detectado');
+      }, 500);
+    };
+    $('termLinkCopy').onclick = async () => {
+      try { await navigator.clipboard.writeText(termLinkUrl); $('termLinkCopy').textContent = 'Copiado'; }
+      catch { prompt('Copia el enlace:', termLinkUrl); }
+    };
+    // Lo que escribe el Linux en la terminal nos sirve para saber por dónde va.
+    // (xterm-pty escribe en el terminal con xterm.write: se recoge ahí.)
+    Object.defineProperty(window.bolsillo, 'tail', { get: () => redact(tail) });
+    const termText = new TextDecoder();
+    const xtermWrite = xterm.write.bind(xterm);
+    xterm.write = (data, cb) => {
+      try {
+        tail = (tail + (typeof data === 'string' ? data : termText.decode(data, { stream: true }))).slice(-6000);
+        if (!window.bolsillo.shell && /Bolsillo: Linux/.test(tail)) { window.bolsillo.shell = true; mark('shell'); }
+        if (/oauth\/authorize/.test(tail)) termLinkCheck();
+        if (!CHAT && /for shortcuts|bypass permissions/.test(tail)) progress.ready();
+      } catch {}
+      return xtermWrite(data, cb);
+    };
+
+    // ---- Chat: Claude Code sin su interfaz (claude -p con stream-json, ver image/chat.sh) ----
+    // La interfaz de terminal de Claude, dentro del emulador, tarda minutos en dibujar cada tecla. Aquí
+    // Safari dibuja el chat y escribe en el terminal una línea JSON por mensaje; lo que contesta Claude
+    // llega por el mismo terminal, una línea JSON por evento. El token se guarda en este iPhone y se le
+    // pasa al Linux al arrancar (sin eco: no vuelve a la pantalla ni a los informes).
+    const chat = { line: '', ready: false, claude: false, busy: false, bubble: null, sent: 0,
+      probes: 0, probe: '', login: { state: '', url: '' } };
+    const TOKEN_KEY = 'bolsillo-claude-token';
+    // Clave de la copia de las apps en el servidor (ver /vm/datos en gateway.js): al azar, una por iPhone.
+    const dataKey = () => {
+      let k = '';
+      try { k = localStorage.getItem('bolsillo-datos') || ''; } catch {}
+      if (!/^[\w-]{32,64}$/.test(k)) {
+        k = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        try { localStorage.setItem('bolsillo-datos', k); } catch {}
+      }
+      return k;
+    };
+    const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
+    const setToken = (t) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch {} };
+    const chatState = (t) => { $('chatState').textContent = t; };
+    const ascii = (str) => str.replace(/[\u007f-￿]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+    const add = (cls, text) => {
+      const el = document.createElement('div');
+      el.className = `msg ${cls}`; el.textContent = text;
+      const log = $('chatLog'), atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+      log.append(el);
+      if (atEnd) log.scrollTop = log.scrollHeight;
+      return el;
+    };
+    const scroll = () => { const log = $('chatLog'); log.scrollTop = log.scrollHeight; };
+    const sendToken = (t) => {
+      type(`@@TOKEN ${t || '-'}\n`);
+      if (!chat.claude) chatState(t ? 'Sesión lista. Claude Code está cargando: ya puedes escribir.' : 'Claude Code está cargando. Mientras, inicia sesión.');
+      dlog(`chat: token ${t ? 'enviado al Linux (' + (t.startsWith('sk-ant-oat') ? 'suscripción' : 'clave de API') + ')' : 'no hay'}`);
+    };
+    const describeTool = (b) => {
+      const i = b.input || {};
+      const what = i.command || i.file_path || i.path || i.pattern || i.url || i.description || '';
+      return `🔧 ${b.name}${what ? ': ' + String(what).slice(0, 160) : ''}`;
+    };
+    const onEvent = (ev) => {
+      if (ev.type === 'control_response' && ev.response?.request_id === chat.probe) {
+        chat.claude = true; progress.ready();
+        if (!chat.busy) chatState(getToken() ? 'Claude listo: escribe abajo.' : 'Claude listo, pero falta iniciar sesión.');
+        dlog('chat: Claude listo (initialize)'); return;
+      }
+      if (ev.type === 'system' && ev.subtype === 'init') { chat.claude = true; chatState(`Claude listo · ${ev.model || ''}`); dlog('chat: Claude listo'); }
+      else if (ev.type === 'system' && ev.subtype === 'api_retry') chatState(`Reintentando la conexión con Claude (${ev.attempt}/${ev.max_retries})…`);
+      else if (ev.type === 'stream_event') {
+        const e = ev.event || {};
+        if (e.type === 'content_block_start' && e.content_block?.type === 'text') chat.bubble = add('cc', '');
+        else if (e.type === 'content_block_delta' && e.delta?.type === 'text_delta') {
+          chat.bubble ??= add('cc', '');
+          chat.bubble.textContent += e.delta.text; scroll();
+        } else if (e.type === 'content_block_stop') chat.bubble = null;
+      } else if (ev.type === 'assistant') {
+        for (const b of ev.message?.content || []) if (b.type === 'tool_use') add('tool', describeTool(b));
+        // Sin mensajes parciales (si no llegaron), el texto entero va aquí.
+        const text = (ev.message?.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+        if (text && !chat.streamed) add('cc', text);
+        scroll();
+      } else if (ev.type === 'user') {
+        for (const b of ev.message?.content || []) if (b.type === 'tool_result') add('tool', `  ↳ ${String(Array.isArray(b.content) ? b.content.map((c) => c.text || '').join('') : b.content || '').split('\n')[0].slice(0, 120)}`);
+      } else if (ev.type === 'result') {
+        chat.busy = false; chat.bubble = null;
+        if (ev.is_error || ev.subtype !== 'success') {
+          const msg = ev.result || ev.errors?.join(' ') || ev.subtype;
+          add('err', `⚠️ ${msg}`);
+          if (/log ?in|api key|auth|401|403|credit/i.test(msg)) { setToken(''); loginBox(); chatState('La sesión no vale: vuelve a iniciarla.'); }
+          else chatState('Claude ha dado un error.');
+        } else chatState(`Listo · ${(ev.duration_ms / 1000).toFixed(0)} s${ev.total_cost_usd ? ` · ${ev.total_cost_usd.toFixed(3)} $` : ''}`);
+        scroll();
+      }
+      if (ev.type === 'stream_event') chat.streamed = true;
+    };
+    // Inicio de sesión con la suscripción (Pro/Max), dentro del propio chat y sin esperar al Linux. El
+    // servidor de Bolsillo hace el mismo flujo que «claude setup-token» (ver /vm/login en gateway.js):
+    //   1. en el chat sale un mensaje con un botón «Abrir claude.ai» (el enlace ya preparado: Safari solo
+    //      abre pestañas nuevas si el enlace existe antes de tocarlo);
+    //   2. se autoriza en claude.ai, que enseña un código con «Copy Code»;
+    //   3. se pega en la caja normal del chat y se envía: la página lo reconoce como código (no como
+    //      mensaje), el servidor lo cambia por un token de un año y se le pasa a Claude, que lo recoge
+    //      aunque ya esté arrancado (preload.mjs). Los mensajes escritos antes se envían entonces.
+    // También vale pegar ahí un token sk-ant-… hecho con «claude setup-token» en otro ordenador.
+    const isCode = (t) => /^[\w-]{20,}(#[\w-]{20,})?$/.test(t) || /^https:\/\/[^ ]*[?&]code=/.test(t);
+    const loginBox = () => {
+      if (chat.login.box?.isConnected) { chat.login.box.scrollIntoView(); return; }
+      const el = add('cc login', '');
+      el.append('Conecta tu cuenta de Claude (Pro o Max). Solo la primera vez:');
+      const a = Object.assign(document.createElement('a'), { textContent: '1 · Conectar con Claude', target: '_blank', rel: 'noopener', className: 'go' });
+      a.setAttribute('aria-disabled', '');
+      const help = document.createElement('span');
+      help.textContent = 'Se abre claude.ai en otra pestaña: pulsa «Authorize» y luego «Copy Code». Después vuelve a esta pestaña.';
+      const paste = Object.assign(document.createElement('a'), { textContent: '2 · Pegar código y entrar', href: '#' });
+      paste.className = 'second';
+      paste.onclick = async (e) => {
+        e.preventDefault();
+        let code = '';
+        try { code = (await navigator.clipboard.readText()).trim(); } catch {}
+        if (code) { add('me', '🔑 código de claude.ai'); scroll(); sendCode(code); }
+        else { $('chatInput').focus(); chatState('No pude leer el portapapeles: mantén pulsada la caja de abajo, «Pegar» y Enviar.'); }
+      };
+      a.addEventListener('click', () => { chat.login.opened = true; el.classList.add('opened'); });
+      // Para autorizar en otro navegador u otro dispositivo: el enlace se copia (o se enseña para copiarlo a mano).
+      const copy = Object.assign(document.createElement('a'), { textContent: 'Copiar el enlace para abrirlo en otro navegador', href: '#', className: 'copy' });
+      copy.onclick = async (e) => {
+        e.preventDefault();
+        if (!chat.login.url) return;
+        try { await navigator.clipboard.writeText(chat.login.url); copy.textContent = 'Enlace copiado ✓ (luego pega aquí el código)'; }
+        catch {
+          const i = Object.assign(document.createElement('input'), { readOnly: true, value: chat.login.url });
+          copy.replaceWith(i); i.focus(); i.select();
+        }
+        chat.login.opened = true; el.classList.add('opened');
+      };
+      el.append(a, help, paste, copy);
+      chat.login.box = el; chat.login.a = a;
+      $('chatInput').placeholder = 'Pega aquí el código de claude.ai…';
+      newLink();
+    };
+    const newLink = async () => {
+      try {
+        const r = await fetch('login', { cache: 'no-store' });
+        const j = await r.json();
+        if (!j.url) throw new Error(j.error || r.status);
+        chat.login.state = j.state; chat.login.url = j.url;
+        chat.login.a.href = `ir?u=${encodeURIComponent(j.url)}`; chat.login.a.removeAttribute('aria-disabled');
+        dlog('chat: enlace de inicio de sesión listo');
+      } catch (e) { add('err', `No se pudo preparar el enlace de claude.ai (${e.message}). Recarga la página.`); }
+    };
+    const useToken = (t, how) => {
+      setToken(t);
+      chat.login.box?.remove(); chat.login.box = null;
+      $('chatInput').placeholder = 'Escribe a Claude…';
+      add('cc', `✅ ${how}. Queda guardado en este iPhone para las próximas veces.`);
+      if (chat.ready) sendToken(t);
+      flush();
+    };
+    const sendCode = async (code) => {
+      // También vale la dirección entera de la página del código (…/callback?code=…&state=…).
+      try { const u = new URL(code); if (u.searchParams.get('code')) code = `${u.searchParams.get('code')}#${u.searchParams.get('state') || ''}`; } catch {}
+      if (/^sk-ant-/.test(code)) return useToken(code, 'Token guardado');
+      chatState('Comprobando el código con claude.ai…'); dlog('chat: código de inicio de sesión enviado');
+      try {
+        const r = await fetch('login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state: chat.login.state, code }) });
+        const j = await r.json();
+        if (!j.token) throw new Error(j.error || r.status);
+        dlog('chat: token de la suscripción recibido');
+        useToken(j.token, 'Sesión iniciada con tu cuenta de Claude');
+      } catch (e) {
+        add('err', `⚠️ ${e.message}`); chatState('Vuelve a abrir claude.ai: el enlace ya está renovado.');
+        chat.login.a.setAttribute('aria-disabled', ''); newLink(); chat.login.box.scrollIntoView();
+      }
+    };
+    // Mensajes escritos antes de tener sesión o antes de que arranque el Linux: se envían en cuanto se pueda.
+    const pending = [];
+    const flush = () => {
+      if (!chat.ready || !getToken()) return;
+      while (pending.length) { chat.busy = true; type(ascii(JSON.stringify({ type: 'user', message: { role: 'user', content: pending.shift() } })) + '\n'); }
+      chatState(chat.claude ? 'Claude está pensando…' : 'Enviado: Claude lo leerá en cuanto termine de cargar.');
+    };
+    // Lo que pide Claude para saber si ya ha cargado: contesta a «initialize» sin llamar a la API.
+    const probe = () => { chat.probe = `listo-${++chat.probes}`; type(`{"type":"control_request","request_id":"${chat.probe}","request":{"subtype":"initialize"}}\n`); };
+    const loginUrl = (text) => {
+      const m = /https:\/\/claude\.(?:ai|com)\/\S*oauth\/authorize\?[\s\S]*?(?=(?:\r*\n){2}|Paste code|$)/.exec(text);
+      return m ? m[0].replace(/\s+/g, '') : '';
+    };
+    const onLine = (line) => {
+      const m = /@@BOLSILLO (.+?)@@/.exec(line);
+      if (m) {
+        const what = m[1];
+        dlog(`chat: ${what}`);
+        if (what === 'chat listo') {
+          // Claude empieza a cargar ya, con sesión o sin ella: si el token llega después, lo recoge al vuelo.
+          chat.ready = true; progress.linuxReady();
+          type(`@@DATOS ${new URL(`datos/${dataKey()}`, location.href).href}\n`);
+          sendToken(getToken());
+          probe(); // desde una instantánea Claude ya está abierto y no habrá «claude arranca»
+          flush();
+        } else if (what.startsWith('datos recuperados')) {
+          const n = Number(what.split(' ')[2]) || 0;
+          if (n) add('cc', `📦 Tus apps están de vuelta (${n}). Las tienes en la pestaña Apps.`);
+        } else if (what === 'claude arranca') {
+          if (!chat.claude) chatState('Claude Code está cargando: ya puedes escribir, se lo paso en cuanto esté.');
+          probe();
+        } else if (what.startsWith('claude termina')) {
+          chat.claude = false; chat.busy = false;
+          add('err', `Claude se ha cerrado (${what.slice(15)}); se vuelve a abrir.`); chatState('Claude se está volviendo a abrir…');
+        }
+        return;
+      }
+      if (line[0] !== '{') return;
+      try { onEvent(JSON.parse(line)); } catch {}
+    };
+    if (CHAT) {
+      $('more').prepend($('tTerm'), $('tDebug'));
+      $('tMore').hidden = false;
+      $('mCopyToken').onclick = async () => {
+        const t = getToken();
+        if (!t) { add('cc', 'Aún no has iniciado sesión.'); return; }
+        try { await navigator.clipboard.writeText(t); add('cc', 'Token copiado. Sirve como CLAUDE_CODE_OAUTH_TOKEN en otro equipo; no lo compartas.'); }
+        catch { prompt('Tu token (cópialo):', t); }
+      };
+      $('mLogout').onclick = () => {
+        if (!getToken() || !confirm('¿Cerrar la sesión de Claude en este iPhone?')) return;
+        setToken(''); if (chat.ready) type('@@TOKEN -\n');
+        add('cc', 'Sesión cerrada.'); loginBox();
+      };
+      $('tChat').hidden = false;
+      show('chat');
+      xterm.write = ((inner) => (data, cb) => {
+        try {
+          const text = typeof data === 'string' ? data : chatText.decode(data, { stream: true });
+          const parts = (chat.line + text).split('\n');
+          chat.line = parts.pop().slice(-200000);
+          for (const p of parts) onLine(p.replace(/\r$/, ''));
+        } catch {}
+        return inner(data, cb);
+      })(xterm.write);
+      $('chatForm').onsubmit = (e) => {
+        e.preventDefault();
+        const text = $('chatInput').value.trim();
+        if (!text) return;
+        $('chatInput').value = '';
+        if (!getToken() && (isCode(text) || /^sk-ant-/.test(text))) { add('me', '🔑 código de claude.ai'); scroll(); sendCode(text); return; }
+        add('me', text); scroll();
+        chat.sent++; pending.push(text);
+        if (!getToken()) { loginBox(); chatState('Lo envío en cuanto inicies sesión.'); return; }
+        if (!chat.ready) { chatState('Lo envío en cuanto arranque el Linux.'); return; }
+        flush();
+      };
+      $('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('chatForm').requestSubmit(); } });
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && chat.login.opened && chat.login.box?.isConnected) { chat.login.box.scrollIntoView({ block: 'center' }); chatState('Ahora pulsa «2 · Pegar código y entrar».'); }
+      });
+      // Desde una instantánea el Linux ya estaba esperando: se le pone en hora y contesta «chat listo».
+      if (window.bolsilloDisk.useSnapshot) {
+        const hola = setInterval(() => {
+          if (chat.ready) { clearInterval(hola); return; }
+          if (window.bolsillo.events.some((e) => e.name === 'module')) type(`@@HOLA ${Math.round(Date.now() / 1000)}\n`);
+        }, 5000);
+      }
+      // Sin sesión guardada, se inicia ya, mientras arranca el Linux.
+      if (!getToken()) loginBox();
+    }
+
+    Module['arguments'] = bolsilloArgs(Module['arguments']);
+    // El tamaño del terminal va en la línea de órdenes del kernel: el Linux lo aplica antes de abrir Claude,
+    // sin esperar a que el servidor de Bolsillo arranque (minutos en el iPhone).
+    const ap = Module['arguments'].indexOf('-append');
+    if (ap !== -1) Module['arguments'][ap + 1] = Module['arguments'][ap + 1].replace(' init=', ` bolsillo.cols=${xterm.cols} bolsillo.rows=${xterm.rows}${CHAT ? ' bolsillo.mode=chat' : ''} init=`);
+    Module['setStatus'] = (text) => { if (text) status(text); };
+    status('Descargando el Linux…');
+    mark('start', { mem: window.bolsilloDisk.memMB, snapshot: window.bolsilloDisk.useSnapshot });
+    initEmscriptenModule(Module).then(() => mark('module')).catch((e) => { status('No arrancó: ' + e.message, 'bad'); mark('error'); });
+
+    // Esperar a que el panel de Bolsillo responda dentro del Linux y entonces mostrarlo.
+    let tries = 0;
+    const poll = async () => {
+      tries++;
+      const d = window.bolsilloDisk;
+      status(`Arrancando Linux… ${secs()} s · disco ${d.fetchedMB} MB bajados`);
+      try {
+        const r = await fetch('/api/info', { cache: 'no-store' });
+        if (r.ok) {
+          window.bolsillo.info = await r.json();
+          window.bolsillo.infoAt = performance.now();
+          mark('panel');
+          window.bolsillo.sendTty();
+          status(`Listo en ${secs()} s · ${window.bolsillo.info.claude || 'Claude Code sin comprobar'}`, 'ok');
+          $('panel').innerHTML = '<iframe src="/" title="Bolsillo"></iframe>';
+          return;
+        }
+      } catch (e) {}
+      setTimeout(poll, tries < 20 ? 3000 : 6000);
+    };
+    setTimeout(poll, 5000);
+  </script>
+</body>
+</html>

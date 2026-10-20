@@ -8,3 +8,23 @@ android/app/src/main/jniLibs/
 *.keystore
 test-run*.log
 test/emulator-results/
+__pycache__/
+*.pyc
+WhatsApp Image *.jpeg
+# Safari: lo que se compila, se descarga o se recoge al probar (ver safari/image/preparar.sh)
+safari/build/
+safari/results/
+safari/*.log
+safari/image/claude
+safari/image/overlay/*
+!safari/image/overlay/root/
+!safari/image/overlay/usr/
+safari/image/overlay/usr/*
+!safari/image/overlay/usr/local/
+safari/image/overlay/usr/local/*
+!safari/image/overlay/usr/local/lib/
+safari/image/overlay/usr/local/lib/*
+!safari/image/overlay/usr/local/lib/claude-node/
+safari/image/overlay/usr/local/lib/claude-node/*
+!safari/image/overlay/usr/local/lib/claude-node/preload.mjs
+safari/image/bolsillo/

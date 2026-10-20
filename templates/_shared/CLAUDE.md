@@ -16,6 +16,10 @@ Todo corre en el propio teléfono (Android + Termux, o un Linux).
   - Con `"start": "node server.js"` → la app debe escuchar en `process.env.PORT` y `process.env.HOST`.
   - `"install": "npm install"` si necesitas dependencias (evítalas si puedes: el móvil es lento).
 - Mantén `bolsillo.json` actualizado (`name`, `description`, `emoji`).
+- Usa **rutas relativas** (`app.js`, `./img/x.png`), nunca absolutas (`/app.js`): la app puede
+  servirse bajo una subruta (por ejemplo `/p/7701/` cuando Bolsillo corre dentro de Safari).
+- **Base de datos:** SQLite con `node:sqlite` (viene en Node 22+, sin instalar nada), en un fichero
+  `data.db` dentro de esta carpeta. Para eso la app necesita `"start": "node server.js"`.
 - No uses dependencias nativas que haya que compilar.
 - No toques ficheros fuera de esta carpeta.
 

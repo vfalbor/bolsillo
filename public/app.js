@@ -208,7 +208,10 @@ $('dDelete').onclick = async () => {
 };
 
 // ---------------- Player ----------------
-function appUrl(p) { return `${location.protocol}//${location.hostname}:${p.port}/`; }
+function appUrl(p) {
+  const base = state.info?.appBase;
+  return base ? new URL(base.replace('{port}', p.port), location.href).href : `${location.protocol}//${location.hostname}:${p.port}/`;
+}
 
 async function showPlayer(id) {
   const run = await api(`/projects/${id}/run`, { method: 'POST' });
@@ -367,11 +370,14 @@ async function renderSettings() {
 
 function renderAccount(acc) {
   const ok = acc.loggedIn;
-  $('accIco').textContent = !acc.installed ? '⚠️' : ok ? '✅' : '🔑';
-  $('accTitle').textContent = !acc.installed ? 'Claude Code no está instalado' : ok ? 'Conectado' : 'Sin conectar';
+  const wait = acc.checking && !ok;
+  $('accIco').textContent = !acc.installed ? '⚠️' : wait ? '⏳' : ok ? '✅' : '🔑';
+  $('accTitle').textContent = !acc.installed ? 'Claude Code no está instalado' : wait ? 'Comprobando Claude Code…' : ok ? 'Conectado' : 'Sin conectar';
   $('accSub').textContent = !acc.installed ? 'Reinstala Bolsillo o revisa la consola.'
+    : wait ? 'En un Linux emulado tarda unos minutos la primera vez.'
     : ok ? (acc.method === 'key' ? 'Usando la clave guardada' : 'Con tu cuenta de Claude') : 'Claude necesita tu cuenta para construir apps.';
-  $('loginBox').hidden = ok || !acc.installed;
+  $('loginBox').hidden = ok || !acc.installed || wait;
+  if (wait) setTimeout(async () => renderAccount((await loadInfo()).account || {}), 10000);
   $('forgetKey').hidden = acc.method !== 'key';
 }
 

@@ -12,6 +12,8 @@ propio teléfono**. Sin PC y sin nube ajena: el código es tuyo.
 - 📱 Hardware del móvil para tus apps: voz, vibración, linterna, avisos, batería, ubicación, portapapeles
 - 🐧 Por debajo hay un **Linux de verdad** (Ubuntu en proot) con Node.js, git y Claude Code
 
+🌐 Web y vídeo: **https://vfalbor.github.io/bolsillo/** · 🍏 iPhone sin instalar nada (experimental): [safari/](safari/README.md)
+
 ## Instalar en Android (APK)
 
 1. Descarga `bolsillo-0.2.0.apk` en el móvil y ábrelo (acepta "instalar apps de origen desconocido").

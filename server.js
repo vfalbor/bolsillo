@@ -4,6 +4,7 @@
 import http from 'node:http';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Projects } from './lib/projects.js';
@@ -12,6 +13,7 @@ import { runTurn } from './lib/agent.js';
 import { serveStatic } from './lib/static.js';
 import { listCapabilities, callCapability, onAndroid } from './lib/device.js';
 import { ClaudeAccount } from './lib/claude.js';
+import { memInfo, topProcesses, tail, runDiag, diagState } from './lib/sysinfo.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,7 +23,12 @@ export function createApp({
   basePort = Number(process.env.BOLSILLO_APPS_PORT || 7701),
   claudeBin = process.env.CLAUDE_BIN || 'claude',
   token = process.env.BOLSILLO_TOKEN || (host === '127.0.0.1' ? '' : crypto.randomBytes(12).toString('hex')),
+  // Behind a gateway apps are reached by path instead of port, e.g. "/p/{port}/".
+  appBase = process.env.BOLSILLO_APP_BASE || '',
 } = {}) {
+  const appLink = (reqHost, port) => appBase
+    ? appBase.replace('{port}', port)
+    : `http://${reqHost?.split(':')[0] || '127.0.0.1'}:${port}/`;
   const projects = new Projects({ dataDir, templatesDir: path.join(here, 'templates') });
   const runner = new Runner({ basePort, host });
   const turns = new Map(); // project id -> running agent child
@@ -29,8 +36,27 @@ export function createApp({
 
   const routes = [
     ['GET', /^\/api\/info$/, async () => {
-      const [claude, device] = await Promise.all([account.status(), listCapabilities()]);
-      return { claude: claude.version && `${claude.version} (Claude Code)`, account: claude, android: onAndroid(), host, device };
+      const [claude, device] = await Promise.all([account.status({ wait: false }), listCapabilities()]);
+      return { claude: claude.version && `${claude.version} (Claude Code)`, account: claude, android: onAndroid(), host, device, appBase };
+    }],
+    ['GET', /^\/api\/health$/, () => ({
+      ...memInfo(), load: os.loadavg()[0], cpus: os.cpus().length, uptime: Math.round(os.uptime()),
+      serverMB: Math.round(process.memoryUsage().rss / 1048576),
+      running: projects.list().filter((p) => runner.status(p.id).running).length, busy: turns.size, top: topProcesses(),
+    })],
+    // Debug view (Safari build): logs listed in BOLSILLO_DEBUG_LOGS and the self-test in BOLSILLO_DIAG_CMD.
+    ['GET', /^\/api\/debug$/, () => ({
+      diag: diagState(),
+      logs: Object.fromEntries((process.env.BOLSILLO_DEBUG_LOGS || '').split(',').filter(Boolean).map((f) => [f, tail(f)])),
+    })],
+    ['POST', /^\/api\/debug\/diag$/, () => runDiag(process.env.BOLSILLO_DIAG_CMD)],
+    // Safari build: the console is a serial port, so Linux doesn't know the size of the page's terminal.
+    // The page sends it; stty applies it to BOLSILLO_TTY and the kernel tells the program there (SIGWINCH).
+    ['POST', /^\/api\/debug\/tty$/, (_, body) => {
+      const tty = process.env.BOLSILLO_TTY, cols = Number(body.cols), rows = Number(body.rows);
+      if (!tty) throw httpError(404, 'Sin terminal que ajustar');
+      if (!(cols >= 20 && cols <= 500 && rows >= 5 && rows <= 300)) throw httpError(400, 'Tamaño raro');
+      return new Promise((resolve) => execFile('stty', ['-F', tty, 'cols', String(cols), 'rows', String(rows)], (err) => resolve({ ok: !err, cols, rows, error: err?.message })));
     }],
     ['GET', /^\/api\/claude$/, () => account.status({ fresh: true })],
     ['POST', /^\/api\/claude\/key$/, (_, body) => { account.saveKey(body.key); return account.status({ fresh: true }); }],
@@ -129,7 +155,7 @@ export function createApp({
       if (launch && req.method === 'GET') {
         const p = mustGet(launch[1]);
         const { port } = await runner.start(p.id, projects.dir(p.id), p);
-        res.writeHead(302, { location: `http://${req.headers.host?.split(':')[0] || '127.0.0.1'}:${port}/` }).end();
+        res.writeHead(302, { location: appLink(req.headers.host, port) }).end();
         return;
       }
       if (!url.pathname.startsWith('/api/')) return serveStatic(path.join(here, 'public'), req, res);

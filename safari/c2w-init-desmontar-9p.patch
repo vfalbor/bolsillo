@@ -1,0 +1,21 @@
+diff --git a/cmd/init/main.go b/cmd/init/main.go
+index 2d2e57c..5e4ca8f 100644
+--- a/cmd/init/main.go
++++ b/cmd/init/main.go
+@@ -194,6 +194,16 @@ func doInit() error {
+ 		}
+ 		log.Printf("INFO:\n%s\n", string(infoD))
+ 		info = parseInfo(infoD)
++		// Bolsillo: sin carpetas que montar desde el navegador, se desmontan las de 9p. Con 9p montado QEMU no
++		// deja hacer instantáneas («Migration is disabled when VirtFS export path … is mounted»), y Bolsillo
++		// la hace con Linux y Claude ya cargados (safari/make-snapshot.py).
++		if len(info.mounts) == 0 {
++			for _, tag := range []string{rootFSTag, packFSTag} {
++				if err := syscall.Unmount(filepath.Join("/mnt", tag), 0); err != nil {
++					log.Printf("failed unmounting %q: %v\n", tag, err)
++				}
++			}
++		}
+ 	}
+ 
+ 	if info.withNet {
